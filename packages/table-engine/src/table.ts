@@ -1,21 +1,15 @@
-import type { TableConfig, ColumnDefinition } from "@csvora/schemas";
+import { tableConfigSchema, type TableConfig, type ColumnInput } from "@csvora/schemas";
 
 export interface CreateTableParams {
   id: string;
   name: string;
-  columns?: Array<{ id: string; name: string }>;
+  columns?: ColumnInput[];
 }
 
 export function createDefaultTableConfig(params: CreateTableParams): TableConfig {
-  const columns: ColumnDefinition[] = (params.columns ?? []).map((col) => ({
-    id: col.id,
-    name: col.name,
-    type: "string",
-  }));
-
-  return {
+  return tableConfigSchema.parse({
     id: params.id,
     name: params.name,
-    columns,
-  };
+    columns: params.columns ?? [],
+  });
 }

@@ -3,7 +3,8 @@
   "compilerOptions": {
     "rootDir": "./",
     "outDir": "./dist",
-    "noEmit": true
+    "noEmit": true,
+    "types": ["bun"]
   },
   "include": ["src/**/*", "test/**/*"]
 }

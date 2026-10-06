@@ -1,3 +1,5 @@
+import { splitCsvLines } from "./normalization";
+
 export type CsvDelimiter = "," | ";" | "\t" | "|";
 
 export const SUPPORTED_DELIMITERS: readonly CsvDelimiter[] = [",", ";", "\t", "|"] as const;
@@ -7,7 +9,7 @@ export const SUPPORTED_DELIMITERS: readonly CsvDelimiter[] = [",", ";", "\t", "|
  * in the first non-empty line.
  */
 export function detectDelimiter(sample: string): CsvDelimiter {
-  const lines = sample.split(/[\r\n]+/);
+  const lines = splitCsvLines(sample);
   const firstLine = lines.find((line) => line.trim().length > 0) ?? "";
 
   if (!firstLine) {

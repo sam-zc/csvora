@@ -1,12 +1,12 @@
 import Fastify, { type FastifyInstance } from "fastify";
-import { registerRoutes } from "./routes";
+import { healthRoutes } from "./routes/health";
 
 export function buildApp(): FastifyInstance {
   const app = Fastify({
     logger: true,
   });
 
-  void registerRoutes(app);
+  void app.register(healthRoutes);
 
   return app;
 }

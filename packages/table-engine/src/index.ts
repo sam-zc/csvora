@@ -1,3 +1,9 @@
 export * from "./table";
 export * from "./format";
-export type { TableConfig, ColumnDefinition, ColumnType } from "@csvora/schemas";
+export type {
+  TableConfig,
+  TableConfigInput,
+  ColumnDefinition,
+  ColumnInput,
+  ColumnType,
+} from "@csvora/schemas";

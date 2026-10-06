@@ -11,6 +11,7 @@ export const columnDefinitionSchema = z.object({
 });
 
 export type ColumnDefinition = z.infer<typeof columnDefinitionSchema>;
+export type ColumnInput = z.input<typeof columnDefinitionSchema>;
 
 export const tableConfigSchema = z.object({
   id: z.string().min(1),
@@ -19,3 +20,4 @@ export const tableConfigSchema = z.object({
 });
 
 export type TableConfig = z.infer<typeof tableConfigSchema>;
+export type TableConfigInput = z.input<typeof tableConfigSchema>;
