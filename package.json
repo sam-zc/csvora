@@ -1,0 +1,25 @@
+{
+    "name": "csvora",
+    "devDependencies": {
+        "oxfmt": "^0.72.0",
+        "oxlint": "^1.87.0",
+        "turbo": "^2.11.7",
+        "typescript": "^7.0.2"
+    },
+    "packageManager": "bun@1.4.0",
+    "private": true,
+    "scripts": {
+        "dev": "turbo dev",
+        "build": "turbo build",
+        "test": "turbo test",
+        "test:e2e": "turbo test:e2e",
+        "lint": "turbo lint",
+        "format": "oxfmt .",
+        "format:check": "oxfmt --check .",
+        "typecheck": "turbo typecheck"
+    },
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ]
+}
