@@ -1,20 +1,23 @@
 {
-    "name": "@csvora/api",
-    "private": true,
-    "type": "module",
-    "scripts": {
-        "dev": "bun --watch src/index.ts",
-        "build": "bun build src/index.ts --outdir dist --target bun",
-        "start": "bun dist/index.js",
-        "test": "bun test",
-        "lint": "oxlint .",
-        "typecheck": "tsc --noEmit"
-    },
-    "dependencies": {
-        "fastify": "^5.12.5",
-        "zod": "^4.6.5"
-    },
-    "devDependencies": {
-        "@types/node": "^26.6.4"
-    }
+  "name": "@csvora/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "start": "bun dist/index.js",
+    "test": "bun test",
+    "lint": "oxlint src test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@csvora/schemas": "workspace:*",
+    "fastify": "^5.12.5",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@csvora/config": "workspace:*",
+    "@types/node": "^26.6.4"
+  }
 }

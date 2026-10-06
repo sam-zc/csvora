@@ -1,0 +1,10 @@
+{
+  "name": "@csvora/config",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "tsconfig.base.json",
+    "tsconfig.library.json",
+    "tsconfig.react.json"
+  ]
+}
