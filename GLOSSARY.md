@@ -28,9 +28,25 @@ The framework-independent configuration representing the schema and presentation
 
 The typed or untyped value residing at the intersection of a row and a column.
 
+### CsvRow
+
+An ordered collection of string cell values representing a single record in a CsvDocument.
+
+### CsvDocument
+
+The parsed, framework-independent tabular representation of a CSV file containing headers, ordered CsvRows, delimiter metadata, and dimensions.
+
+### CsvDiagnostic
+
+A structured diagnostic record (warning or error) produced during CSV parsing to report syntax anomalies, field count mismatches, or header irregularities without aborting data preservation.
+
 ### Presentation Rule
 
 A display formatting rule (such as decimal precision, currency symbols, date format strings, alignment, or conditional styling) applied to cell values without mutating the underlying data.
+
+### Formula Injection Risk
+
+A raw cell value starting with formula-trigger characters (such as `=`, `+`, `-`, or `@`) that spreadsheet software may execute when opened.
 
 ### Sanitized Export
 
