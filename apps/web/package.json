@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "oxlint src",
     "typecheck": "tsc --noEmit",
+    "test": "bun test test",
     "test:e2e": "playwright test"
   },
   "dependencies": {

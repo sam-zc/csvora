@@ -11,7 +11,8 @@ export { SUPPORTED_DELIMITERS, type CsvDelimiter };
  *
  * If no delimiters are detected or the sample is empty, defaults to ','.
  */
-export function detectDelimiter(sample: string): CsvDelimiter {
+export function detectDelimiter(rawSample: string): CsvDelimiter {
+  const sample = rawSample.charCodeAt(0) === 0xfeff ? rawSample.slice(1) : rawSample;
   if (!sample || sample.trim().length === 0) {
     return ",";
   }

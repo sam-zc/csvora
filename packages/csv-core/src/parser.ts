@@ -24,7 +24,8 @@ interface RawParsedRow {
  * - Structured diagnostics for malformed syntax (unterminated quotes, extra quotes, field mismatches)
  * - Non-destructive data preservation
  */
-export function parseCsv(input: string, options?: CsvParseOptions): CsvParseResult {
+export function parseCsv(rawInput: string, options?: CsvParseOptions): CsvParseResult {
+  const input = rawInput.charCodeAt(0) === 0xfeff ? rawInput.slice(1) : rawInput;
   const delimiter = options?.delimiter ?? detectDelimiter(input);
   const hasHeader = options?.header ?? true;
   const skipEmptyLines = options?.skipEmptyLines ?? true;
@@ -90,7 +91,8 @@ export function parseCsv(input: string, options?: CsvParseOptions): CsvParseResu
       const firstField = currentRowFields[0];
       const isEmpty =
         currentRowFields.length === 0 ||
-        (currentRowFields.length === 1 && (firstField === undefined || firstField.trim().length === 0));
+        (currentRowFields.length === 1 &&
+          (firstField === undefined || firstField.trim().length === 0));
       if (isEmpty) {
         currentRowFields = [];
         return;

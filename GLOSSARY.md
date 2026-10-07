@@ -40,6 +40,10 @@ The parsed, framework-independent tabular representation of a CSV file containin
 
 A structured diagnostic record (warning or error) produced during CSV parsing to report syntax anomalies, field count mismatches, or header irregularities without aborting data preservation.
 
+### LoadedCsvDocument
+
+The client session wrapper encapsulating a successfully ingested CSV file's metadata (filename, byte size, last modified), the parsed `CsvDocument`, and any parse diagnostics prior to rendering.
+
 ### Presentation Rule
 
 A display formatting rule (such as decimal precision, currency symbols, date format strings, alignment, or conditional styling) applied to cell values without mutating the underlying data.

@@ -289,4 +289,13 @@ describe("parseCsv", () => {
     const quotes = result.diagnostics.filter((d) => d.code === "unexpected_quote");
     expect(quotes.length).toBe(1);
   });
+
+  it("safely strips UTF-8 BOM from beginning of input", () => {
+    const csvWithBom = "\uFEFFname,age\nSam,24";
+    const result = parseCsv(csvWithBom);
+
+    expect(result.success).toBe(true);
+    expect(result.document.headers).toEqual(["name", "age"]);
+    expect(getRow(result.document.rows, 0).fields).toEqual(["Sam", "24"]);
+  });
 });
