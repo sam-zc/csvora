@@ -1,14 +1,19 @@
 "use client";
 
+import type { LoadedCsvDocument } from "../types";
 import { useCsvIngestion } from "../hooks/use-csv-ingestion";
 import { CsvDropzone } from "./csv-dropzone";
 import { CsvFileSummary } from "./csv-file-summary";
+
+export interface CsvIngestionWorkspaceProps {
+  readonly onContinueToPreview?: (loadedDocument: LoadedCsvDocument) => void;
+}
 
 /**
  * Top-level feature workspace coordinating file selection, ingestion lifecycle,
  * and document summary presentation.
  */
-export function CsvIngestionWorkspace() {
+export function CsvIngestionWorkspace({ onContinueToPreview }: CsvIngestionWorkspaceProps = {}) {
   const { state, ingestFile, reset } = useCsvIngestion();
 
   if (state.status === "reading" || state.status === "parsing") {
@@ -26,7 +31,15 @@ export function CsvIngestionWorkspace() {
   }
 
   if (state.status === "success") {
-    return <CsvFileSummary loadedDocument={state.loadedDocument} onReset={reset} />;
+    return (
+      <CsvFileSummary
+        loadedDocument={state.loadedDocument}
+        onReset={reset}
+        onPreview={
+          onContinueToPreview ? () => onContinueToPreview(state.loadedDocument) : undefined
+        }
+      />
+    );
   }
 
   return (

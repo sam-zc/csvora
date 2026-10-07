@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { healthResponseSchema, tableConfigSchema } from "../src";
+import {
+  columnPresentationSchema,
+  healthResponseSchema,
+  presentationConfigSchema,
+  rendererIdSchema,
+  tableConfigSchema,
+} from "../src";
 
 describe("@csvora/schemas", () => {
   it("validates health response", () => {
@@ -30,5 +36,45 @@ describe("@csvora/schemas", () => {
         name: "Invalid",
       }),
     ).toThrow();
+  });
+
+  it("validates renderer id", () => {
+    expect(rendererIdSchema.parse("table")).toBe("table");
+    expect(() => rendererIdSchema.parse("unknown_renderer")).toThrow();
+  });
+
+  it("validates column presentation configuration", () => {
+    const col = columnPresentationSchema.parse({
+      id: "col_0",
+      sourceIndex: 0,
+      header: "User Name",
+    });
+    expect(col.id).toBe("col_0");
+    expect(col.sourceIndex).toBe(0);
+    expect(col.header).toBe("User Name");
+    expect(col.visible).toBe(true);
+    expect(col.align).toBe("left");
+
+    const rightAlignedCol = columnPresentationSchema.parse({
+      id: "col_1",
+      sourceIndex: 1,
+      header: "Amount",
+      visible: false,
+      align: "right",
+    });
+    expect(rightAlignedCol.align).toBe("right");
+    expect(rightAlignedCol.visible).toBe(false);
+  });
+
+  it("validates presentation config", () => {
+    const presentation = presentationConfigSchema.parse({
+      rendererId: "table",
+      columns: [
+        { id: "col_0", sourceIndex: 0, header: "Title", visible: true, align: "left" },
+        { id: "col_1", sourceIndex: 1, header: "Score", visible: true, align: "right" },
+      ],
+    });
+    expect(presentation.rendererId).toBe("table");
+    expect(presentation.columns).toHaveLength(2);
   });
 });

@@ -5,7 +5,7 @@
 CSVora is an open-source visual CSV and table designer.
 
 > [!NOTE]
-> **Project Status**: CSVora is in early-stage active development. The monorepo foundation, package boundaries, and development pipelines are initialized. Visual editing, file upload, table previews, and export features are not yet implemented.
+> **Project Status**: CSVora is in early-stage active development. In-browser CSV ingestion, parsing diagnostics, presentation models, and virtualized table preview are functional. Future phases will introduce column inspection, custom formatting presets, theme customization, and exports.
 
 ## Long-term Vision
 

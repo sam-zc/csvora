@@ -6,6 +6,7 @@ import { CsvDiagnostics } from "./csv-diagnostics";
 interface CsvFileSummaryProps {
   readonly loadedDocument: LoadedCsvDocument;
   readonly onReset: () => void;
+  readonly onPreview?: () => void;
 }
 
 function getDelimiterLabel(delim: string): string {
@@ -26,7 +27,7 @@ function getDelimiterLabel(delim: string): string {
 /**
  * Summary view displayed upon successful ingestion and parsing of a CSV document.
  */
-export function CsvFileSummary({ loadedDocument, onReset }: CsvFileSummaryProps) {
+export function CsvFileSummary({ loadedDocument, onReset, onPreview }: CsvFileSummaryProps) {
   const { file, document, diagnostics } = loadedDocument;
   const hasErrors = diagnostics.some((d) => d.severity === "error");
 
@@ -142,9 +143,10 @@ export function CsvFileSummary({ loadedDocument, onReset }: CsvFileSummaryProps)
 
           <Button
             variant="default"
-            disabled
+            onClick={onPreview}
+            disabled={!onPreview}
             className="w-full sm:w-auto"
-            title="Table and renderer presets will be introduced in the next phase"
+            aria-label="Continue to preview loaded CSV document"
           >
             Continue to preview
           </Button>

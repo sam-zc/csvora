@@ -48,6 +48,18 @@ The client session wrapper encapsulating a successfully ingested CSV file's meta
 
 A display formatting rule (such as decimal precision, currency symbols, date format strings, alignment, or conditional styling) applied to cell values without mutating the underlying data.
 
+### PresentationConfig
+
+The portable, framework-independent presentation model specifying how a `CsvDocument` should be presented by the active renderer (such as visible columns, column order, and alignment) without mutating raw CSV data.
+
+### Renderer
+
+A distinct visual presentation strategy (e.g., table preview, card view, report) responsible for rendering a `CsvDocument` according to a `PresentationConfig`.
+
+### RendererId
+
+A canonical identifier denoting the active visual renderer (such as `'table'`).
+
 ### Formula Injection Risk
 
 A raw cell value starting with formula-trigger characters (such as `=`, `+`, `-`, or `@`) that spreadsheet software may execute when opened.

@@ -18,6 +18,7 @@
     "lint": "oxlint src test"
   },
   "dependencies": {
+    "@csvora/csv-core": "workspace:*",
     "@csvora/schemas": "workspace:*"
   },
   "devDependencies": {

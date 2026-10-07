@@ -16,6 +16,7 @@
     "@csvora/schemas": "workspace:*",
     "@csvora/table-engine": "workspace:*",
     "@csvora/ui": "workspace:*",
+    "@tanstack/react-virtual": "^3.14.13",
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"

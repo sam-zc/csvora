@@ -1,6 +1,13 @@
 "use client";
 
-import { useRef, useState, useCallback, type DragEvent, type ChangeEvent, type KeyboardEvent } from "react";
+import {
+  useRef,
+  useState,
+  useCallback,
+  type DragEvent,
+  type ChangeEvent,
+  type KeyboardEvent,
+} from "react";
 import type { IngestionError } from "../types";
 
 interface CsvDropzoneProps {
