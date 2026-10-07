@@ -16,6 +16,8 @@ export interface CsvPreviewWorkspaceProps {
 
 export interface PreviewHeaderProps {
   readonly loadedDocument: LoadedCsvDocument;
+  readonly presentation: TablePresentationConfig;
+  readonly onUpdatePresentation?: ((presentation: TablePresentationConfig) => void) | undefined;
   readonly onReset: () => void;
   readonly onResetPresentation?: (() => void) | undefined;
   readonly hasPresentationChanges?: boolean | undefined;

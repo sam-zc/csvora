@@ -4,10 +4,15 @@ import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@csvora/ui";
 import {
+  MIN_COLUMN_WIDTH,
+  canHideColumn,
   getColumnDisplayLabel,
+  getVisibleColumns,
   resetColumnPresentation,
   setColumnAlignment,
   setColumnTypeOverride,
+  setColumnVisibility,
+  setColumnWidth,
 } from "@csvora/table-engine";
 import type { TableRendererProps } from "../types";
 import { ColumnInspector } from "./column-inspector";
@@ -34,7 +39,7 @@ export function DefaultTableRenderer({
   onUpdatePresentation,
 }: TableRendererProps) {
   const parentRef = useRef<HTMLDivElement>(null);
-  const visibleColumns = presentation.columns.filter((c) => c.visible);
+  const visibleColumns = getVisibleColumns(presentation);
   const totalColumns = visibleColumns.length + 1; // +1 for the row index (#) column
 
   const rowVirtualizer = useVirtualizer({
@@ -58,7 +63,27 @@ export function DefaultTableRenderer({
       aria-label="CSV data table"
       className="relative w-full max-h-[calc(100vh-14rem)] min-h-[360px] overflow-auto rounded-xl border border-border bg-card shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     >
-      <table className="w-full caption-bottom text-sm border-collapse">
+      <table className="w-full caption-bottom text-sm border-collapse min-w-full">
+        <colgroup>
+          {/* Row Number Column */}
+          <col style={{ width: "4rem", minWidth: "4rem", maxWidth: "4rem" }} />
+          {/* Data Columns */}
+          {visibleColumns.map((col) => (
+            <col
+              key={col.id}
+              style={
+                col.width !== undefined
+                  ? {
+                      width: `${col.width}px`,
+                      minWidth: `${col.width}px`,
+                      maxWidth: `${col.width}px`,
+                    }
+                  : { minWidth: `${MIN_COLUMN_WIDTH}px` }
+              }
+            />
+          ))}
+        </colgroup>
+
         <thead className="sticky top-0 z-20 bg-muted/95 backdrop-blur-xs border-b border-border shadow-2xs">
           <tr>
             {/* Row Number Header */}
@@ -78,6 +103,15 @@ export function DefaultTableRenderer({
                 <th
                   key={col.id}
                   scope="col"
+                  style={
+                    col.width !== undefined
+                      ? {
+                          width: `${col.width}px`,
+                          minWidth: `${col.width}px`,
+                          maxWidth: `${col.width}px`,
+                        }
+                      : { minWidth: `${MIN_COLUMN_WIDTH}px` }
+                  }
                   className={cn(
                     "px-3 py-2 text-xs font-semibold tracking-tight text-foreground whitespace-nowrap border-r border-border/40 last:border-r-0",
                     col.align === "right"
@@ -111,6 +145,7 @@ export function DefaultTableRenderer({
                       <ColumnInspector
                         column={col}
                         document={document}
+                        canHide={canHideColumn(presentation, col.id)}
                         onUpdateType={(typeOverride) =>
                           onUpdatePresentation(
                             setColumnTypeOverride(presentation, col.id, typeOverride),
@@ -118,6 +153,12 @@ export function DefaultTableRenderer({
                         }
                         onUpdateAlign={(align) =>
                           onUpdatePresentation(setColumnAlignment(presentation, col.id, align))
+                        }
+                        onUpdateVisibility={(visible) =>
+                          onUpdatePresentation(setColumnVisibility(presentation, col.id, visible))
+                        }
+                        onUpdateWidth={(width) =>
+                          onUpdatePresentation(setColumnWidth(presentation, col.id, width))
                         }
                         onResetColumn={() =>
                           onUpdatePresentation(resetColumnPresentation(presentation, col.id))
@@ -206,8 +247,17 @@ export function DefaultTableRenderer({
                       return (
                         <td
                           key={col.id}
+                          style={
+                            col.width !== undefined
+                              ? {
+                                  width: `${col.width}px`,
+                                  minWidth: `${col.width}px`,
+                                  maxWidth: `${col.width}px`,
+                                }
+                              : { minWidth: `${MIN_COLUMN_WIDTH}px` }
+                          }
                           className={cn(
-                            "px-3.5 py-1.5 text-xs text-foreground whitespace-nowrap max-w-sm truncate border-r border-border/30 last:border-r-0",
+                            "px-3.5 py-1.5 text-xs text-foreground whitespace-nowrap truncate border-r border-border/30 last:border-r-0",
                             col.align === "right"
                               ? "text-right font-mono"
                               : col.align === "center"

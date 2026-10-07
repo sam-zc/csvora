@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   columnPresentationSchema,
+  columnWidthSchema,
   healthResponseSchema,
   presentationConfigSchema,
   rendererIdSchema,
@@ -64,11 +65,13 @@ describe("@csvora/schemas", () => {
       align: "right",
       inferredType: "number",
       typeOverride: "string",
+      width: 150,
     });
     expect(typedCol.align).toBe("right");
     expect(typedCol.visible).toBe(false);
     expect(typedCol.inferredType).toBe("number");
     expect(typedCol.typeOverride).toBe("string");
+    expect(typedCol.width).toBe(150);
 
     expect(() =>
       columnPresentationSchema.parse({
@@ -78,6 +81,22 @@ describe("@csvora/schemas", () => {
         inferredType: "invalid_type",
       }),
     ).toThrow();
+  });
+
+  it("validates column width schema bounds and constraints", () => {
+    expect(columnWidthSchema.parse(80)).toBe(80);
+    expect(columnWidthSchema.parse(600)).toBe(600);
+    expect(columnWidthSchema.parse(250)).toBe(250);
+
+    // Below minimum (80)
+    expect(() => columnWidthSchema.parse(79)).toThrow();
+    // Above maximum (600)
+    expect(() => columnWidthSchema.parse(601)).toThrow();
+    // Non-integer
+    expect(() => columnWidthSchema.parse(150.5)).toThrow();
+    // Negative or zero
+    expect(() => columnWidthSchema.parse(0)).toThrow();
+    expect(() => columnWidthSchema.parse(-100)).toThrow();
   });
 
   it("validates presentation config", () => {

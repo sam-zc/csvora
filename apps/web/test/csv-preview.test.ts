@@ -1,6 +1,17 @@
 import { describe, expect, it } from "bun:test";
 import type { CsvDocument } from "@csvora/csv-core";
-import { createDefaultPresentation, getColumnDisplayLabel } from "@csvora/table-engine";
+import {
+  createDefaultPresentation,
+  getColumnDisplayLabel,
+  getVisibleColumns,
+  moveColumn,
+  resetColumnPresentation,
+  resetLayout,
+  setColumnAlignment,
+  setColumnTypeOverride,
+  setColumnVisibility,
+  setColumnWidth,
+} from "@csvora/table-engine";
 import type { LoadedCsvDocument } from "../src/features/csv-ingestion";
 
 describe("CSV Preview Workspace & Presentation Integration", () => {
@@ -187,5 +198,114 @@ describe("CSV Preview Workspace & Presentation Integration", () => {
     expect(overridden.columns[0]?.align).toBe("right");
     expect(overridden.columns[1]?.typeOverride).toBe("string");
     expect(overridden.columns[1]?.align).toBe("left");
+  });
+
+  it("supports hiding and showing columns, updating visible column derivation without losing column metadata", () => {
+    const initial = createDefaultPresentation(mockLoadedDocument.document);
+    expect(getVisibleColumns(initial)).toHaveLength(4);
+
+    // Set an override on col_1 (amount)
+    const withOverride = setColumnTypeOverride(initial, "col_1", "string");
+    // Hide col_1
+    const hidden = setColumnVisibility(withOverride, "col_1", false);
+    const visibleCols = getVisibleColumns(hidden);
+    expect(visibleCols).toHaveLength(3);
+    expect(visibleCols.map((c) => c.id)).toEqual(["col_0", "col_2", "col_3"]);
+
+    // Raw document is unmutated
+    expect(mockLoadedDocument.document.columnCount).toBe(4);
+
+    // Showing col_1 again restores its typeOverride
+    const shown = setColumnVisibility(hidden, "col_1", true);
+    expect(getVisibleColumns(shown)).toHaveLength(4);
+    expect(shown.columns.find((c) => c.id === "col_1")?.typeOverride).toBe("string");
+  });
+
+  it("reorders columns and guarantees that row cell values still resolve to correct sourceIndex", () => {
+    const initial = createDefaultPresentation(mockLoadedDocument.document);
+    expect(initial.columns.map((c) => c.id)).toEqual(["col_0", "col_1", "col_2", "col_3"]);
+
+    // Move col_2 (description) left twice to become first column
+    const movedOnce = moveColumn(initial, "col_2", "left");
+    const reordered = moveColumn(movedOnce, "col_2", "left");
+    expect(reordered.columns.map((c) => c.id)).toEqual(["col_2", "col_0", "col_1", "col_3"]);
+
+    // Verify visual order is decoupled from source order
+    expect(reordered.columns[0]?.header).toBe("description");
+    expect(reordered.columns[0]?.sourceIndex).toBe(2);
+
+    // First row cell values mapped by column sourceIndex
+    const firstRow = mockLoadedDocument.document.rows[0]!;
+    const displayedFields = reordered.columns.map((col) => firstRow.fields[col.sourceIndex]);
+    expect(displayedFields).toEqual(["Subscription", "tx_1", "120.50", "Active"]);
+  });
+
+  it("sets, validates, and clears column widths in presentation", () => {
+    const initial = createDefaultPresentation(mockLoadedDocument.document);
+
+    const withWidth = setColumnWidth(initial, "col_0", 220);
+    expect(withWidth.columns[0]?.width).toBe(220);
+
+    // Clear width back to automatic
+    const cleared = setColumnWidth(withWidth, "col_0", undefined);
+    expect(cleared.columns[0]?.width).toBeUndefined();
+  });
+
+  it("resets layout restoring source order and visibility while preserving semantic type overrides", () => {
+    const initial = createDefaultPresentation(mockLoadedDocument.document);
+
+    // 1. Override type and alignment on col_0
+    const typed = setColumnAlignment(
+      setColumnTypeOverride(initial, "col_0", "number"),
+      "col_0",
+      "center",
+    );
+    // 2. Reorder col_3 to first
+    const reordered = moveColumn(
+      moveColumn(moveColumn(typed, "col_3", "left"), "col_3", "left"),
+      "col_3",
+      "left",
+    );
+    // 3. Hide col_1 and set width on col_2
+    const modified = setColumnWidth(setColumnVisibility(reordered, "col_1", false), "col_2", 300);
+
+    expect(modified.columns.map((c) => c.id)).toEqual(["col_3", "col_0", "col_1", "col_2"]);
+
+    // Reset layout
+    const layoutReset = resetLayout(modified);
+
+    // Restores source order
+    expect(layoutReset.columns.map((c) => c.id)).toEqual(["col_0", "col_1", "col_2", "col_3"]);
+    expect(layoutReset.columns.map((c) => c.sourceIndex)).toEqual([0, 1, 2, 3]);
+
+    // All columns visible
+    expect(layoutReset.columns.every((c) => c.visible)).toBe(true);
+
+    // All widths cleared
+    expect(layoutReset.columns.every((c) => c.width === undefined)).toBe(true);
+
+    // Type and alignment overrides PRESERVED
+    expect(layoutReset.columns[0]?.typeOverride).toBe("number");
+    expect(layoutReset.columns[0]?.align).toBe("center");
+  });
+
+  it("resets a single column back to default settings using resetColumnPresentation", () => {
+    const initial = createDefaultPresentation(mockLoadedDocument.document);
+    const modified = setColumnWidth(
+      setColumnVisibility(
+        setColumnAlignment(setColumnTypeOverride(initial, "col_1", "string"), "col_1", "center"),
+        "col_1",
+        false,
+      ),
+      "col_1",
+      250,
+    );
+
+    const reset = resetColumnPresentation(modified, "col_1");
+    const col1 = reset.columns.find((c) => c.id === "col_1");
+    expect(col1?.typeOverride).toBeUndefined();
+    expect(col1?.align).toBe("right"); // inferred number default
+    expect(col1?.visible).toBe(true);
+    expect(col1?.width).toBeUndefined();
   });
 });

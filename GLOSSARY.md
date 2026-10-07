@@ -80,6 +80,26 @@ A raw cell value starting with formula-trigger characters (such as `=`, `+`, `-`
 
 A CSV or XLSX document generated from styled and formatted data where formula injection characters (e.g., leading `=`, `+`, `-`, `@`) have been safely neutralized.
 
+### Column Visibility
+
+The boolean presentation state controlling whether a column is displayed in the active renderer or concealed from view, preserved independently of the underlying CsvDocument.
+
+### Presentation Order
+
+The sequence in which columns are displayed in the active visual renderer, completely decoupled from the original physical column order in the CsvDocument.
+
+### Column Width
+
+A numeric, bounded presentation dimension (in logical pixels) specifying the preferred horizontal space allocated to a column in tabular renderers, defaulting to automatic content-based sizing when unspecified.
+
+### Layout Reset
+
+A presentation operation that restores source column order, reveals all hidden columns, and clears custom widths back to automatic defaults while preserving semantic type and alignment overrides.
+
+### Renderer-Specific Config
+
+Presentation configuration properties that govern layout or behaviors specific to a particular visual renderer (such as column width in tabular views) rather than generic semantic column data.
+
 ---
 
 ## Package Boundary Rules

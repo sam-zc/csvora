@@ -15,6 +15,19 @@ export const columnAlignSchema = z.enum(["left", "right", "center"]);
 export type ColumnAlign = z.infer<typeof columnAlignSchema>;
 
 /**
+ * Bounds for column width in logical pixels.
+ */
+export const MIN_COLUMN_WIDTH = 80;
+export const MAX_COLUMN_WIDTH = 600;
+
+/**
+ * Validates a custom column width in logical pixels.
+ * Must be an integer between MIN_COLUMN_WIDTH (80) and MAX_COLUMN_WIDTH (600).
+ */
+export const columnWidthSchema = z.number().int().min(MIN_COLUMN_WIDTH).max(MAX_COLUMN_WIDTH);
+export type ColumnWidth = z.infer<typeof columnWidthSchema>;
+
+/**
  * Presentation-level configuration for a single column.
  * Separates raw CSV data structure from visual presentation parameters.
  */
@@ -55,6 +68,12 @@ export const columnPresentationSchema = z.object({
    * When undefined or omitted, presentation uses inferredType.
    */
   typeOverride: columnTypeSchema.optional(),
+
+  /**
+   * Optional custom column width in logical pixels.
+   * When undefined or omitted, the column uses automatic/content-based width.
+   */
+  width: columnWidthSchema.optional(),
 });
 
 export type ColumnPresentation = z.infer<typeof columnPresentationSchema>;

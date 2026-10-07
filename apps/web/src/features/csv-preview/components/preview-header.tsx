@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Badge, Button } from "@csvora/ui";
 import { CsvDiagnostics, formatFileSize } from "../../csv-ingestion";
 import type { PreviewHeaderProps } from "../types";
+import { ColumnManager } from "./column-manager";
 
 function getDelimiterLabel(delim: string): string {
   switch (delim) {
@@ -26,6 +27,8 @@ function getDelimiterLabel(delim: string): string {
  */
 export function PreviewHeader({
   loadedDocument,
+  presentation,
+  onUpdatePresentation,
   onReset,
   onResetPresentation,
   hasPresentationChanges = false,
@@ -113,16 +116,24 @@ export function PreviewHeader({
             </button>
           )}
 
-          {/* Reset Columns Action when modified */}
+          {/* Column Manager Action */}
+          {onUpdatePresentation && (
+            <ColumnManager
+              presentation={presentation}
+              onUpdatePresentation={onUpdatePresentation}
+            />
+          )}
+
+          {/* Reset Presentation Action when modified */}
           {hasPresentationChanges && onResetPresentation && (
             <Button
               variant="outline"
               size="sm"
               onClick={onResetPresentation}
               className="cursor-pointer text-xs"
-              aria-label="Reset all columns to default inferred presentation"
+              aria-label="Reset presentation to default inferred settings"
             >
-              Reset columns
+              Reset presentation
             </Button>
           )}
 

@@ -6,6 +6,8 @@ import {
   type ColumnAlign,
   type ColumnPresentation,
   type ColumnType,
+  MIN_COLUMN_WIDTH,
+  MAX_COLUMN_WIDTH,
   getColumnDisplayLabel,
   getColumnProfile,
   getDefaultAlignmentForType,
@@ -14,6 +16,7 @@ import {
 import {
   Badge,
   Button,
+  Input,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -29,8 +32,11 @@ import {
 export interface ColumnInspectorProps {
   readonly column: ColumnPresentation;
   readonly document: CsvDocument;
+  readonly canHide?: boolean | undefined;
   readonly onUpdateType: (typeOverride: ColumnType | undefined) => void;
   readonly onUpdateAlign: (align: ColumnAlign) => void;
+  readonly onUpdateVisibility?: ((visible: boolean) => void) | undefined;
+  readonly onUpdateWidth?: ((width: number | undefined) => void) | undefined;
   readonly onResetColumn: () => void;
 }
 
@@ -53,8 +59,11 @@ function getTypeBadgeVariant(type: ColumnType): "default" | "secondary" | "outli
 export function ColumnInspector({
   column,
   document,
+  canHide,
   onUpdateType,
   onUpdateAlign,
+  onUpdateVisibility,
+  onUpdateWidth,
   onResetColumn,
 }: ColumnInspectorProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -65,7 +74,9 @@ export function ColumnInspector({
   const isTypeOverridden = column.typeOverride !== undefined;
   const defaultAlign = getDefaultAlignmentForType(column.inferredType);
   const isAlignModified = column.align !== defaultAlign;
-  const isModified = isTypeOverridden || isAlignModified;
+  const isWidthModified = column.width !== undefined;
+  const isVisibilityModified = !column.visible;
+  const isModified = isTypeOverridden || isAlignModified || isWidthModified || isVisibilityModified;
 
   // Lightweight content profile
   const profile = getColumnProfile(document, column.sourceIndex);
@@ -261,6 +272,122 @@ export function ColumnInspector({
             })}
           </div>
         </div>
+
+        {/* Width Control */}
+        {onUpdateWidth && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor={`width-input-${column.id}`}
+                className="text-xs font-medium text-foreground"
+              >
+                Width
+              </label>
+              <span className="text-[10px] text-muted-foreground font-mono">
+                {column.width !== undefined ? `${column.width}px` : "Auto"}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Input
+                id={`width-input-${column.id}`}
+                type="number"
+                min={MIN_COLUMN_WIDTH}
+                max={MAX_COLUMN_WIDTH}
+                placeholder="Auto"
+                value={column.width ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value.trim();
+                  if (val === "") {
+                    onUpdateWidth(undefined);
+                  } else {
+                    const num = parseInt(val, 10);
+                    if (!Number.isNaN(num)) {
+                      onUpdateWidth(num);
+                    }
+                  }
+                }}
+                aria-label={`Width in pixels for column ${displayLabel}`}
+                className="h-8 text-xs font-mono w-24"
+              />
+
+              <div className="flex items-center gap-1 flex-1">
+                <button
+                  type="button"
+                  onClick={() => onUpdateWidth(undefined)}
+                  className={cn(
+                    "flex-1 py-1 rounded text-[11px] font-medium border transition-colors cursor-pointer text-center",
+                    column.width === undefined
+                      ? "bg-secondary text-secondary-foreground border-secondary font-semibold"
+                      : "text-muted-foreground hover:text-foreground border-border/50",
+                  )}
+                >
+                  Auto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onUpdateWidth(120)}
+                  className={cn(
+                    "flex-1 py-1 rounded text-[11px] font-medium border transition-colors cursor-pointer text-center",
+                    column.width === 120
+                      ? "bg-secondary text-secondary-foreground border-secondary font-semibold"
+                      : "text-muted-foreground hover:text-foreground border-border/50",
+                  )}
+                >
+                  120
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onUpdateWidth(200)}
+                  className={cn(
+                    "flex-1 py-1 rounded text-[11px] font-medium border transition-colors cursor-pointer text-center",
+                    column.width === 200
+                      ? "bg-secondary text-secondary-foreground border-secondary font-semibold"
+                      : "text-muted-foreground hover:text-foreground border-border/50",
+                  )}
+                >
+                  200
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Visibility Control */}
+        {onUpdateVisibility && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-foreground">Visibility</label>
+              <span className="text-[10px] text-muted-foreground">
+                {column.visible ? "Visible" : "Hidden"}
+              </span>
+            </div>
+
+            <Button
+              type="button"
+              variant={column.visible ? "outline" : "secondary"}
+              size="sm"
+              disabled={column.visible && canHide === false}
+              title={
+                column.visible && canHide === false
+                  ? "At least one column must remain visible"
+                  : undefined
+              }
+              onClick={() => {
+                onUpdateVisibility(!column.visible);
+                if (column.visible) {
+                  setIsOpen(false);
+                }
+              }}
+              className="w-full text-xs h-7 cursor-pointer"
+              aria-label={
+                column.visible ? `Hide column ${displayLabel}` : `Show column ${displayLabel}`
+              }
+            >
+              {column.visible ? "Hide column" : "Show column"}
+            </Button>
+          </div>
+        )}
 
         <Separator />
 

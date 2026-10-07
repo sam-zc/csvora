@@ -205,16 +205,16 @@ test.describe("CSV Preview Workspace and Default Table Renderer", () => {
     await expect(firstColCell).toHaveClass(/text-center/);
     await expect(secondColCell).not.toHaveClass(/text-center/);
 
-    // Reset columns button should now be visible in preview header
-    const resetColumnsBtn = page.getByRole("button", {
-      name: "Reset all columns to default inferred presentation",
+    // Reset presentation button should now be visible in preview header
+    const resetPresentationBtn = page.getByRole("button", {
+      name: "Reset presentation to default inferred settings",
     });
-    await expect(resetColumnsBtn).toBeVisible();
-    await resetColumnsBtn.click();
+    await expect(resetPresentationBtn).toBeVisible();
+    await resetPresentationBtn.click();
 
-    // After resetting all columns, first column returns to default left alignment
+    // After resetting presentation, first column returns to default left alignment
     await expect(firstColCell).not.toHaveClass(/text-center/);
-    await expect(resetColumnsBtn).not.toBeVisible();
+    await expect(resetPresentationBtn).not.toBeVisible();
   });
 
   test("efficiently virtualizes large CSV datasets without rendering all rows in DOM", async ({
@@ -254,5 +254,113 @@ test.describe("CSV Preview Workspace and Default Table Renderer", () => {
         fs.unlinkSync(tempFilePath);
       }
     }
+  });
+
+  test("allows managing columns: hiding/showing, reordering, setting custom width, and resetting layout with data preservation", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    const fixturePath = path.join(__dirname, "fixtures", "irregular.csv");
+    const fileInput = page.locator("#csv-file-input");
+    await fileInput.setInputFiles(fixturePath);
+
+    await page.getByRole("button", { name: "Continue to preview" }).click();
+
+    // 1. Initial columns verification: #, name, name, Column 3, score
+    await expect(page.getByRole("columnheader", { name: "Column 3" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "score" })).toBeVisible();
+
+    // 2. Open column inspector for score and set width and alignment override
+    const inspectScoreBtn = page.getByRole("button", { name: "Inspect column score" });
+    await inspectScoreBtn.click();
+
+    // Override alignment to center
+    await page.getByRole("radio", { name: "center" }).click();
+
+    // Set custom width: 200px using preset button
+    const preset200Btn = page.getByRole("button", { name: "200", exact: true });
+    await preset200Btn.click();
+    await page.keyboard.press("Escape");
+
+    // Verify cell 98 is centered
+    const scoreCell = page.getByRole("cell", { name: "98" });
+    await expect(scoreCell).toBeVisible();
+    await expect(scoreCell).toHaveClass(/text-center/);
+
+    // 3. Open Column Manager popover
+    const manageColumnsBtn = page.getByRole("button", { name: "Manage columns" });
+    await expect(manageColumnsBtn).toBeVisible();
+    await manageColumnsBtn.click();
+
+    await expect(page.getByRole("heading", { name: "Columns" })).toBeVisible();
+    await expect(page.getByText("4 of 4 visible")).toBeVisible();
+
+    // 4. Hide Column 3
+    const hideCol3Btn = page.getByRole("button", { name: "Hide Column 3" });
+    await expect(hideCol3Btn).toBeVisible();
+    await hideCol3Btn.click();
+
+    // Verify Column 3 disappears from the table
+    await expect(page.getByRole("columnheader", { name: "Column 3" })).not.toBeVisible();
+    await expect(page.getByText("3 of 4 visible")).toBeVisible();
+
+    // 5. Show Column 3 again
+    const showCol3Btn = page.getByRole("button", { name: "Show Column 3" });
+    await expect(showCol3Btn).toBeVisible();
+    await showCol3Btn.click();
+
+    await expect(page.getByRole("columnheader", { name: "Column 3" })).toBeVisible();
+    await expect(page.getByText("4 of 4 visible")).toBeVisible();
+
+    // 6. Reorder: move score up (earlier) before Column 3
+    const moveScoreUpBtn = page.getByRole("button", { name: "Move score up" });
+    await expect(moveScoreUpBtn).toBeVisible();
+    await moveScoreUpBtn.click();
+
+    // Now score is at index 2 (before Column 3 at index 3)
+    // Verify the column header order by checking all visible headers
+    const columnHeaders = page.getByRole("columnheader");
+    const headerTexts = await columnHeaders.allInnerTexts();
+    const scoreIndex = headerTexts.findIndex((t) => t.includes("score"));
+    const col3Index = headerTexts.findIndex((t) => t.includes("Column 3"));
+    expect(scoreIndex).toBeGreaterThan(-1);
+    expect(col3Index).toBeGreaterThan(-1);
+    expect(scoreIndex).toBeLessThan(col3Index);
+
+    // 7. Verify data integrity and overrides survive reorder
+    // Score data cell still displays "98" and is centered
+    await expect(page.getByRole("cell", { name: "98" })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "98" })).toHaveClass(/text-center/);
+
+    // 8. Reset layout in Column Manager
+    const resetLayoutBtn = page.getByRole("button", {
+      name: "Reset column order, visibility, and widths to default",
+    });
+    await expect(resetLayoutBtn).toBeVisible();
+    await resetLayoutBtn.click();
+
+    // Verify source order is restored: Column 3 is before score
+    const resetHeaderTexts = await columnHeaders.allInnerTexts();
+    const resetScoreIndex = resetHeaderTexts.findIndex((t) => t.includes("score"));
+    const resetCol3Index = resetHeaderTexts.findIndex((t) => t.includes("Column 3"));
+    expect(resetCol3Index).toBeLessThan(resetScoreIndex);
+
+    // Verify alignment override on score is PRESERVED after layout reset
+    await expect(page.getByRole("cell", { name: "98" })).toHaveClass(/text-center/);
+
+    // Close Column Manager
+    await page.keyboard.press("Escape");
+
+    // 9. Reset presentation in header restores everything to default
+    const resetPresentationBtn = page.getByRole("button", {
+      name: "Reset presentation to default inferred settings",
+    });
+    await expect(resetPresentationBtn).toBeVisible();
+    await resetPresentationBtn.click();
+
+    // Score alignment returns to default (right-aligned for numeric)
+    await expect(page.getByRole("cell", { name: "98" })).toHaveClass(/text-right/);
+    await expect(resetPresentationBtn).not.toBeVisible();
   });
 });

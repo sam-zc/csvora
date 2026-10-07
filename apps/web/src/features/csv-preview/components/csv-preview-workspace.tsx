@@ -21,9 +21,15 @@ export function CsvPreviewWorkspace({ loadedDocument, onReset }: CsvPreviewWorks
     createDefaultPresentation(loadedDocument.document),
   );
 
-  const hasPresentationChanges = presentation.columns.some((col) => {
+  const hasPresentationChanges = presentation.columns.some((col, idx) => {
     const defaultAlign = getDefaultAlignmentForType(col.inferredType);
-    return col.typeOverride !== undefined || col.align !== defaultAlign;
+    return (
+      col.typeOverride !== undefined ||
+      col.align !== defaultAlign ||
+      !col.visible ||
+      col.width !== undefined ||
+      col.sourceIndex !== idx
+    );
   });
 
   const handleResetPresentation = () => {
@@ -35,6 +41,8 @@ export function CsvPreviewWorkspace({ loadedDocument, onReset }: CsvPreviewWorks
       {/* Document & Workspace Navigation Header */}
       <PreviewHeader
         loadedDocument={loadedDocument}
+        presentation={presentation}
+        onUpdatePresentation={setPresentation}
         onReset={onReset}
         onResetPresentation={handleResetPresentation}
         hasPresentationChanges={hasPresentationChanges}
@@ -49,7 +57,7 @@ export function CsvPreviewWorkspace({ loadedDocument, onReset }: CsvPreviewWorks
           <span>Default table preview</span>
           {hasPresentationChanges && (
             <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
-              • Custom column settings active
+              • Custom presentation settings active
             </span>
           )}
         </div>
