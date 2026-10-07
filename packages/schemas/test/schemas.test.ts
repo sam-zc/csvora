@@ -53,17 +53,31 @@ describe("@csvora/schemas", () => {
     expect(col.sourceIndex).toBe(0);
     expect(col.header).toBe("User Name");
     expect(col.visible).toBe(true);
-    expect(col.align).toBe("left");
+    expect(col.inferredType).toBe("string");
+    expect(col.typeOverride).toBeUndefined();
 
-    const rightAlignedCol = columnPresentationSchema.parse({
+    const typedCol = columnPresentationSchema.parse({
       id: "col_1",
       sourceIndex: 1,
       header: "Amount",
       visible: false,
       align: "right",
+      inferredType: "number",
+      typeOverride: "string",
     });
-    expect(rightAlignedCol.align).toBe("right");
-    expect(rightAlignedCol.visible).toBe(false);
+    expect(typedCol.align).toBe("right");
+    expect(typedCol.visible).toBe(false);
+    expect(typedCol.inferredType).toBe("number");
+    expect(typedCol.typeOverride).toBe("string");
+
+    expect(() =>
+      columnPresentationSchema.parse({
+        id: "col_2",
+        sourceIndex: 2,
+        header: "Bad",
+        inferredType: "invalid_type",
+      }),
+    ).toThrow();
   });
 
   it("validates presentation config", () => {

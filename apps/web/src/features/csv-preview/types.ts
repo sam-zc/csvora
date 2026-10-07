@@ -17,14 +17,18 @@ export interface CsvPreviewWorkspaceProps {
 export interface PreviewHeaderProps {
   readonly loadedDocument: LoadedCsvDocument;
   readonly onReset: () => void;
+  readonly onResetPresentation?: (() => void) | undefined;
+  readonly hasPresentationChanges?: boolean | undefined;
 }
 
 export interface RendererHostProps {
   readonly document: CsvDocument;
   readonly presentation: PresentationConfig;
+  readonly onUpdatePresentation?: ((presentation: TablePresentationConfig) => void) | undefined;
 }
 
 export interface TableRendererProps {
   readonly document: CsvDocument;
   readonly presentation: TablePresentationConfig;
+  readonly onUpdatePresentation?: ((presentation: TablePresentationConfig) => void) | undefined;
 }

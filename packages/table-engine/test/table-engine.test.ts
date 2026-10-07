@@ -5,6 +5,12 @@ import {
   createDefaultTableConfig,
   formatCellValue,
   getColumnDisplayLabel,
+  getColumnProfile,
+  getDefaultAlignmentForType,
+  getEffectiveColumnType,
+  resetColumnPresentation,
+  setColumnAlignment,
+  setColumnTypeOverride,
 } from "../src";
 
 describe("@csvora/table-engine", () => {
@@ -160,6 +166,182 @@ describe("@csvora/table-engine", () => {
       expect(getColumnDisplayLabel({ header: "", sourceIndex: 0 })).toBe("Column 1");
       expect(getColumnDisplayLabel({ header: "", sourceIndex: 2 })).toBe("Column 3");
       expect(getColumnDisplayLabel({ header: "   ", sourceIndex: 4 })).toBe("Column 5");
+    });
+  });
+
+  describe("Column Inspection and Type Controls", () => {
+    const typedDoc: CsvDocument = {
+      headers: ["id", "active", "joined", "code", "amount", "amount"],
+      rows: [
+        {
+          index: 0,
+          lineNumber: 2,
+          fields: ["101", "true", "2026-01-15", "00123", "500", "1000"],
+        },
+        {
+          index: 1,
+          lineNumber: 3,
+          fields: ["102", "false", "2026-02-20", "00456", "750", "2000"],
+        },
+      ],
+      delimiter: ",",
+      rowCount: 2,
+      columnCount: 6,
+    };
+
+    it("stores inferred types in default presentation for each semantic type", () => {
+      const presentation = createDefaultPresentation(typedDoc);
+
+      // number column
+      expect(presentation.columns[0]?.inferredType).toBe("number");
+      expect(presentation.columns[0]?.align).toBe("right");
+
+      // boolean column
+      expect(presentation.columns[1]?.inferredType).toBe("boolean");
+      expect(presentation.columns[1]?.align).toBe("left");
+
+      // date column
+      expect(presentation.columns[2]?.inferredType).toBe("date");
+      expect(presentation.columns[2]?.align).toBe("left");
+
+      // code with leading zeros is string
+      expect(presentation.columns[3]?.inferredType).toBe("string");
+      expect(presentation.columns[3]?.align).toBe("left");
+
+      // initially no overrides
+      for (const col of presentation.columns) {
+        expect(col.typeOverride).toBeUndefined();
+      }
+    });
+
+    it("resolves effective column type correctly with and without override", () => {
+      expect(
+        getEffectiveColumnType({
+          inferredType: "number",
+          typeOverride: undefined,
+        }),
+      ).toBe("number");
+
+      expect(
+        getEffectiveColumnType({
+          inferredType: "string",
+          typeOverride: "number",
+        }),
+      ).toBe("number");
+
+      expect(
+        getEffectiveColumnType({
+          inferredType: "boolean",
+          typeOverride: "string",
+        }),
+      ).toBe("string");
+    });
+
+    it("resolves default alignment for column types", () => {
+      expect(getDefaultAlignmentForType("number")).toBe("right");
+      expect(getDefaultAlignmentForType("string")).toBe("left");
+      expect(getDefaultAlignmentForType("boolean")).toBe("left");
+      expect(getDefaultAlignmentForType("date")).toBe("left");
+    });
+
+    it("sets column type override immutably", () => {
+      const presentation = createDefaultPresentation(typedDoc);
+      const updated = setColumnTypeOverride(presentation, "col_3", "number");
+
+      // previous presentation is not mutated
+      expect(presentation.columns[3]?.typeOverride).toBeUndefined();
+
+      // updated presentation reflects override
+      expect(updated.columns[3]?.typeOverride).toBe("number");
+      expect(getEffectiveColumnType(updated.columns[3]!)).toBe("number");
+
+      // clearing override with undefined
+      const cleared = setColumnTypeOverride(updated, "col_3", undefined);
+      expect(cleared.columns[3]?.typeOverride).toBeUndefined();
+      expect(getEffectiveColumnType(cleared.columns[3]!)).toBe("string");
+    });
+
+    it("sets column alignment immutably", () => {
+      const presentation = createDefaultPresentation(typedDoc);
+      const updated = setColumnAlignment(presentation, "col_0", "center");
+
+      // original is not mutated
+      expect(presentation.columns[0]?.align).toBe("right");
+
+      // updated reflects new alignment
+      expect(updated.columns[0]?.align).toBe("center");
+      // type inference remains untouched
+      expect(updated.columns[0]?.inferredType).toBe("number");
+    });
+
+    it("resets a column presentation to inferred type and default alignment", () => {
+      const presentation = createDefaultPresentation(typedDoc);
+      // Change col_0 alignment to left and col_3 type to number
+      const modified = setColumnAlignment(
+        setColumnTypeOverride(presentation, "col_3", "number"),
+        "col_0",
+        "left",
+      );
+
+      const resetCol0 = resetColumnPresentation(modified, "col_0");
+      expect(resetCol0.columns[0]?.align).toBe("right"); // restored to number default
+      expect(resetCol0.columns[0]?.typeOverride).toBeUndefined();
+      expect(resetCol0.columns[3]?.typeOverride).toBe("number"); // other column untouched
+
+      const resetCol3 = resetColumnPresentation(resetCol0, "col_3");
+      expect(resetCol3.columns[3]?.typeOverride).toBeUndefined();
+      expect(resetCol3.columns[3]?.align).toBe("left"); // restored to string default
+    });
+
+    it("keeps duplicate header columns independently configurable", () => {
+      const presentation = createDefaultPresentation(typedDoc);
+      // col_4 and col_5 both have header "amount"
+      expect(presentation.columns[4]?.header).toBe("amount");
+      expect(presentation.columns[5]?.header).toBe("amount");
+
+      const modified = setColumnAlignment(presentation, "col_4", "center");
+      expect(modified.columns[4]?.align).toBe("center");
+      expect(modified.columns[5]?.align).toBe("right"); // col_5 unchanged
+
+      const typeModified = setColumnTypeOverride(modified, "col_5", "string");
+      expect(typeModified.columns[4]?.typeOverride).toBeUndefined();
+      expect(typeModified.columns[5]?.typeOverride).toBe("string");
+    });
+
+    it("preserves raw CSV values and immutability when presentation types are overridden", () => {
+      const presentation = createDefaultPresentation(typedDoc);
+      const modified = setColumnTypeOverride(presentation, "col_3", "number");
+
+      // Effective type is number
+      expect(getEffectiveColumnType(modified.columns[3]!)).toBe("number");
+
+      // Underlying CsvDocument and cell fields are NOT mutated: 00123 remains "00123"
+      expect(typedDoc.rows[0]?.fields[3]).toBe("00123");
+      expect(typedDoc.rows[1]?.fields[3]).toBe("00456");
+    });
+
+    it("computes column profile counts accurately without mutating document", () => {
+      const docWithEmptyCells: CsvDocument = {
+        headers: ["status"],
+        rows: [
+          { index: 0, lineNumber: 2, fields: ["active"] },
+          { index: 1, lineNumber: 3, fields: [""] },
+          { index: 2, lineNumber: 4, fields: ["   "] },
+          { index: 3, lineNumber: 5, fields: ["pending"] },
+        ],
+        delimiter: ",",
+        rowCount: 4,
+        columnCount: 1,
+      };
+
+      const profile = getColumnProfile(docWithEmptyCells, 0);
+      expect(profile.totalRows).toBe(4);
+      expect(profile.nonEmptyCount).toBe(2);
+      expect(profile.emptyCount).toBe(2);
+
+      // Verify document rows were not mutated
+      expect(docWithEmptyCells.rows[1]?.fields[0]).toBe("");
+      expect(docWithEmptyCells.rows[2]?.fields[0]).toBe("   ");
     });
   });
 });

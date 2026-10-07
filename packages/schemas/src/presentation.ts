@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { columnTypeSchema } from "./table-config";
 
 /**
  * Identifier for registered visual renderers.
@@ -43,6 +44,17 @@ export const columnPresentationSchema = z.object({
    * Preferred horizontal alignment for cell contents.
    */
   align: columnAlignSchema.default("left"),
+
+  /**
+   * Semantic data type inferred from raw CSV cell values.
+   */
+  inferredType: columnTypeSchema.default("string"),
+
+  /**
+   * User-specified presentation type override.
+   * When undefined or omitted, presentation uses inferredType.
+   */
+  typeOverride: columnTypeSchema.optional(),
 });
 
 export type ColumnPresentation = z.infer<typeof columnPresentationSchema>;

@@ -3,8 +3,14 @@
 import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@csvora/ui";
-import { getColumnDisplayLabel } from "@csvora/table-engine";
+import {
+  getColumnDisplayLabel,
+  resetColumnPresentation,
+  setColumnAlignment,
+  setColumnTypeOverride,
+} from "@csvora/table-engine";
 import type { TableRendererProps } from "../types";
+import { ColumnInspector } from "./column-inspector";
 
 /**
  * Default Table Renderer for CSVora.
@@ -19,9 +25,14 @@ import type { TableRendererProps } from "../types";
  * - Handles uneven rows safely: missing fields render empty cells; extra fields are flagged with
  *   a subtle visual indicator while remaining preserved in the underlying CsvDocument.
  * - Supports Unicode characters (CJK, emojis, accented characters).
- * - Aligns numeric columns to the right and text columns to the left based on inferred presentation.
+ * - Column inspection and type controls: inspect column properties, change alignment, and apply type overrides.
+ * - Aligns columns based on presentation configuration (left, center, or right).
  */
-export function DefaultTableRenderer({ document, presentation }: TableRendererProps) {
+export function DefaultTableRenderer({
+  document,
+  presentation,
+  onUpdatePresentation,
+}: TableRendererProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const visibleColumns = presentation.columns.filter((c) => c.visible);
   const totalColumns = visibleColumns.length + 1; // +1 for the row index (#) column
@@ -68,18 +79,52 @@ export function DefaultTableRenderer({ document, presentation }: TableRendererPr
                   key={col.id}
                   scope="col"
                   className={cn(
-                    "px-3.5 py-2.5 text-xs font-semibold tracking-tight text-foreground whitespace-nowrap border-r border-border/40 last:border-r-0",
-                    col.align === "right" ? "text-right" : "text-left",
+                    "px-3 py-2 text-xs font-semibold tracking-tight text-foreground whitespace-nowrap border-r border-border/40 last:border-r-0",
+                    col.align === "right"
+                      ? "text-right"
+                      : col.align === "center"
+                        ? "text-center"
+                        : "text-left",
                   )}
                   title={col.header || `Empty header (display label: ${displayLabel})`}
                 >
-                  {isEmptyHeader ? (
-                    <span className="italic text-muted-foreground/80 font-normal">
+                  <div
+                    className={cn(
+                      "flex items-center gap-1.5",
+                      col.align === "right"
+                        ? "justify-end"
+                        : col.align === "center"
+                          ? "justify-center"
+                          : "justify-start",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "truncate",
+                        isEmptyHeader && "italic text-muted-foreground/80 font-normal",
+                      )}
+                    >
                       {displayLabel}
                     </span>
-                  ) : (
-                    displayLabel
-                  )}
+
+                    {onUpdatePresentation && (
+                      <ColumnInspector
+                        column={col}
+                        document={document}
+                        onUpdateType={(typeOverride) =>
+                          onUpdatePresentation(
+                            setColumnTypeOverride(presentation, col.id, typeOverride),
+                          )
+                        }
+                        onUpdateAlign={(align) =>
+                          onUpdatePresentation(setColumnAlignment(presentation, col.id, align))
+                        }
+                        onResetColumn={() =>
+                          onUpdatePresentation(resetColumnPresentation(presentation, col.id))
+                        }
+                      />
+                    )}
+                  </div>
                 </th>
               );
             })}
@@ -163,7 +208,11 @@ export function DefaultTableRenderer({ document, presentation }: TableRendererPr
                           key={col.id}
                           className={cn(
                             "px-3.5 py-1.5 text-xs text-foreground whitespace-nowrap max-w-sm truncate border-r border-border/30 last:border-r-0",
-                            col.align === "right" ? "text-right font-mono" : "text-left",
+                            col.align === "right"
+                              ? "text-right font-mono"
+                              : col.align === "center"
+                                ? "text-center"
+                                : "text-left",
                           )}
                           title={rawValue ?? ""}
                         >

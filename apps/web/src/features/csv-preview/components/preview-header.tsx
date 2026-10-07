@@ -24,7 +24,12 @@ function getDelimiterLabel(delim: string): string {
  * Top header bar for the CSV preview workspace.
  * Displays file metadata, dimensional statistics, diagnostic status, and workspace controls.
  */
-export function PreviewHeader({ loadedDocument, onReset }: PreviewHeaderProps) {
+export function PreviewHeader({
+  loadedDocument,
+  onReset,
+  onResetPresentation,
+  hasPresentationChanges = false,
+}: PreviewHeaderProps) {
   const { file, document, diagnostics } = loadedDocument;
   const [showDiagnostics, setShowDiagnostics] = useState(false);
 
@@ -106,6 +111,19 @@ export function PreviewHeader({ loadedDocument, onReset }: PreviewHeaderProps) {
                 </Badge>
               )}
             </button>
+          )}
+
+          {/* Reset Columns Action when modified */}
+          {hasPresentationChanges && onResetPresentation && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onResetPresentation}
+              className="cursor-pointer text-xs"
+              aria-label="Reset all columns to default inferred presentation"
+            >
+              Reset columns
+            </Button>
           )}
 
           {/* Change File Action */}

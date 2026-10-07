@@ -16,6 +16,18 @@ The character used to separate fields in a CSV record (e.g. comma `,`, semicolon
 
 The semantic data type inferred or explicitly assigned to a column: `string`, `number`, `boolean`, or `date`. Defined in `@csvora/schemas`.
 
+### Inferred Column Type
+
+The semantic data type (`string`, `number`, `boolean`, or `date`) automatically deduced from a column's raw cell contents by `@csvora/csv-core` without mutating underlying CSV data.
+
+### Type Override
+
+An explicit user-specified presentation type assigned to a column in `@csvora/table-engine` that supersedes the inferred column type without altering raw cell data.
+
+### Effective Column Type
+
+The resolved presentation data type for a column, yielding the user's type override when present, or defaulting to the inferred column type.
+
 ### ColumnDefinition
 
 Metadata defining a single table column, consisting of an identifier (`id`), display name (`name`), and semantic `type`.

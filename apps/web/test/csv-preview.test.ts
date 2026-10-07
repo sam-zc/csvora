@@ -112,4 +112,80 @@ describe("CSV Preview Workspace & Presentation Integration", () => {
     // Raw value in CsvDocument row is preserved intact without mutation or evaluation
     expect(docWithFormula.rows[0]?.fields[1]).toBe("=cmd|'/c calc'!A1");
   });
+
+  it("stores and displays inferred column types in presentation model", () => {
+    const presentation = createDefaultPresentation(mockLoadedDocument.document);
+
+    // col_0: "id" (tx_1, tx_2, tx_3 -> string)
+    expect(presentation.columns[0]?.inferredType).toBe("string");
+    // col_1: "amount" (120.50, -45.00, 99.99 -> number)
+    expect(presentation.columns[1]?.inferredType).toBe("number");
+    // col_2: "description" (Subscription, Refund, Purchase -> string)
+    expect(presentation.columns[2]?.inferredType).toBe("string");
+  });
+
+  it("allows overriding column type without mutating source data or other columns", () => {
+    const presentation = createDefaultPresentation(mockLoadedDocument.document);
+
+    // Override col_0 (id) to number
+    const updated = {
+      ...presentation,
+      columns: presentation.columns.map((col) =>
+        col.id === "col_0" ? { ...col, typeOverride: "number" as const } : col,
+      ),
+    };
+
+    expect(updated.columns[0]?.inferredType).toBe("string");
+    expect(updated.columns[0]?.typeOverride).toBe("number");
+    expect(updated.columns[1]?.typeOverride).toBeUndefined();
+
+    // Source cell value is strictly preserved as raw string "tx_1"
+    expect(mockLoadedDocument.document.rows[0]?.fields[0]).toBe("tx_1");
+  });
+
+  it("supports changing alignment and resetting to automatic defaults", () => {
+    const presentation = createDefaultPresentation(mockLoadedDocument.document);
+    expect(presentation.columns[1]?.align).toBe("right"); // numeric default
+
+    // User overrides alignment to center
+    const centered = {
+      ...presentation,
+      columns: presentation.columns.map((col) =>
+        col.id === "col_1" ? { ...col, align: "center" as const } : col,
+      ),
+    };
+    expect(centered.columns[1]?.align).toBe("center");
+
+    // Resetting presentation recreates default inferred alignments
+    const reset = createDefaultPresentation(mockLoadedDocument.document);
+    expect(reset.columns[1]?.align).toBe("right");
+    expect(reset.columns[1]?.typeOverride).toBeUndefined();
+  });
+
+  it("allows duplicate header columns to maintain independent presentation overrides", () => {
+    const dupDoc: CsvDocument = {
+      headers: ["rate", "rate"],
+      rows: [{ index: 0, lineNumber: 2, fields: ["10.5", "20.5"] }],
+      delimiter: ",",
+      rowCount: 1,
+      columnCount: 2,
+    };
+
+    const initial = createDefaultPresentation(dupDoc);
+    expect(initial.columns[0]?.id).toBe("col_0");
+    expect(initial.columns[1]?.id).toBe("col_1");
+
+    // Override only col_1 to string
+    const overridden = {
+      ...initial,
+      columns: initial.columns.map((c) =>
+        c.id === "col_1" ? { ...c, typeOverride: "string" as const, align: "left" as const } : c,
+      ),
+    };
+
+    expect(overridden.columns[0]?.typeOverride).toBeUndefined();
+    expect(overridden.columns[0]?.align).toBe("right");
+    expect(overridden.columns[1]?.typeOverride).toBe("string");
+    expect(overridden.columns[1]?.align).toBe("left");
+  });
 });
