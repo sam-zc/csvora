@@ -5,12 +5,16 @@ import {
   createDefaultPresentation,
   getDefaultAlignmentForType,
   resetColumnPresentation,
+  resetDeparturesMapping,
   setColumnAlignment,
+  setColumnFormat,
   setColumnTypeOverride,
   setColumnVisibility,
   setColumnWidth,
-  type TablePresentationConfig,
+  setDeparturesMapping,
+  type PresentationConfig,
 } from "@csvora/table-engine";
+import { cn } from "@csvora/ui";
 import type { CsvPreviewWorkspaceProps } from "../types";
 import { ColumnInspectorSidebar } from "./column-inspector-sidebar";
 import { PreviewHeader } from "./preview-header";
@@ -20,13 +24,13 @@ import { RendererHost } from "./renderer-host";
  * CsvPreviewWorkspace coordinates the visual data design studio.
  *
  * Structure:
- * 1. Top Bar: Quiet editor chrome (branding, file identity, renderer concept, columns manager, file actions)
- * 2. Left Sidebar: Persistent inspector panel for the currently selected column, or dataset overview empty state
+ * 1. Top Bar: Quiet editor chrome (branding, file identity, renderer switcher, columns manager, file actions)
+ * 2. Left Sidebar: Persistent inspector panel for active renderer and selected column
  * 3. Main Design Canvas: Centered, warm neutral workspace with subtle dotted grid hosting the visual renderer
  * 4. Bottom Status Bar: Minimal workspace telemetry and interaction hints
  */
 export function CsvPreviewWorkspace({ loadedDocument, onReset }: CsvPreviewWorkspaceProps) {
-  const [presentation, setPresentation] = useState<TablePresentationConfig>(() =>
+  const [presentation, setPresentation] = useState<PresentationConfig>(() =>
     createDefaultPresentation(loadedDocument.document),
   );
 
@@ -46,16 +50,19 @@ export function CsvPreviewWorkspace({ loadedDocument, onReset }: CsvPreviewWorks
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const hasPresentationChanges = presentation.columns.some((col, idx) => {
-    const defaultAlign = getDefaultAlignmentForType(col.inferredType);
-    return (
-      col.typeOverride !== undefined ||
-      col.align !== defaultAlign ||
-      !col.visible ||
-      col.width !== undefined ||
-      col.sourceIndex !== idx
-    );
-  });
+  const hasPresentationChanges =
+    presentation.rendererId !== "table" ||
+    presentation.columns.some((col, idx) => {
+      const defaultAlign = getDefaultAlignmentForType(col.inferredType);
+      return (
+        col.typeOverride !== undefined ||
+        col.align !== defaultAlign ||
+        !col.visible ||
+        col.width !== undefined ||
+        col.format !== undefined ||
+        col.sourceIndex !== idx
+      );
+    });
 
   const handleResetPresentation = () => {
     setPresentation(createDefaultPresentation(loadedDocument.document));
@@ -103,9 +110,16 @@ export function CsvPreviewWorkspace({ loadedDocument, onReset }: CsvPreviewWorks
           onUpdateWidth={(columnId, width) =>
             setPresentation((prev) => setColumnWidth(prev, columnId, width))
           }
+          onUpdateFormat={(columnId, format) =>
+            setPresentation((prev) => setColumnFormat(prev, columnId, format))
+          }
           onResetColumn={(columnId) =>
             setPresentation((prev) => resetColumnPresentation(prev, columnId))
           }
+          onUpdateDeparturesMapping={(mapping) =>
+            setPresentation((prev) => setDeparturesMapping(prev, mapping))
+          }
+          onResetDeparturesMapping={() => setPresentation((prev) => resetDeparturesMapping(prev))}
         />
 
         {/* Central Design Canvas */}
@@ -117,7 +131,11 @@ export function CsvPreviewWorkspace({ loadedDocument, onReset }: CsvPreviewWorks
           <div className="w-full max-w-6xl my-auto py-2 flex flex-col items-center">
             <section
               aria-label="CSV Preview"
-              className="w-full shadow-[0_4px_24px_rgba(0,0,0,0.06)] rounded-xl"
+              className={cn(
+                "w-full",
+                presentation.rendererId === "table" &&
+                  "shadow-[0_4px_24px_rgba(0,0,0,0.06)] rounded-xl",
+              )}
             >
               <RendererHost
                 document={loadedDocument.document}
@@ -136,10 +154,12 @@ export function CsvPreviewWorkspace({ loadedDocument, onReset }: CsvPreviewWorks
         <div className="flex items-center gap-3">
           <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
             <span className="size-1.5 rounded-full bg-accent" aria-hidden="true" />
-            Table View
+            {presentation.rendererId === "departures" ? "Departures Board" : "Table View"}
           </span>
           <span className="hidden sm:inline font-mono">
-            {loadedDocument.document.rowCount.toLocaleString()} rows rendered via virtualization
+            {presentation.rendererId === "departures"
+              ? `${Math.min(12, loadedDocument.document.rowCount)} visible departures`
+              : `${loadedDocument.document.rowCount.toLocaleString()} rows rendered via virtualization`}
           </span>
           {hasPresentationChanges && (
             <span className="font-medium text-accent font-mono text-[11px]">

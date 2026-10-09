@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@csvora/csv-core": "workspace:*",
+    "@csvora/export": "workspace:*",
     "@csvora/schemas": "workspace:*",
     "@csvora/table-engine": "workspace:*",
     "@csvora/ui": "workspace:*",

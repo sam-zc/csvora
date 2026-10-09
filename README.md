@@ -15,7 +15,7 @@ CSVora will enable users to:
 - Infer and adjust column data types (strings, numbers, booleans, dates)
 - Format currencies, percentages, decimals, and custom presentation rules
 - Customize themes, alignments, widths, and conditional formatting
-- Export styled tables and share projects across web, desktop, and CLI clients
+- Export datasets safely into portable formats (Raw CSV, Formatted CSV, Markdown table, and lossless JSON) across web, desktop, and CLI clients
 
 ## Architecture & Monorepo Layout
 
@@ -25,7 +25,8 @@ csvora/
 │   ├── web/           # Next.js 16 (App Router) + React 19 frontend
 │   └── api/           # Standalone Fastify backend running on Bun
 └── packages/
-    ├── csv-core/      # Portable CSV domain logic (parsing, normalization)
+    ├── csv-core/      # Portable CSV domain logic (parsing, normalization, RFC 4180 serialization)
+    ├── export/        # Portable export pipeline (raw CSV, formatted CSV, Markdown, JSON)
     ├── table-engine/  # Portable table formatting & presentation models
     ├── schemas/       # Shared Zod runtime schemas & TypeScript types
     ├── ui/            # Reusable UI presentation components (shadcn/ui + Tailwind v4)
@@ -34,10 +35,11 @@ csvora/
 
 ### Dependency Rules
 
-- `apps/web` → `@csvora/ui`, `@csvora/csv-core`, `@csvora/table-engine`, `@csvora/schemas`
+- `apps/web` → `@csvora/ui`, `@csvora/export`, `@csvora/csv-core`, `@csvora/table-engine`, `@csvora/schemas`
+- `@csvora/export` → `@csvora/csv-core`, `@csvora/table-engine`, `@csvora/schemas`
 - `apps/api` → `@csvora/schemas` (and core domain packages as needed)
 - Packages never import from `apps/*`.
-- Domain packages (`csv-core`, `table-engine`) are pure TypeScript and remain framework-independent.
+- Domain packages (`csv-core`, `table-engine`, `export`) are pure TypeScript and remain framework-independent.
 
 ## Tech Stack
 

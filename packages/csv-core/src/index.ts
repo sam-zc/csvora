@@ -4,3 +4,4 @@ export * from "./delimiter";
 export * from "./formula";
 export * from "./inference";
 export * from "./parser";
+export * from "./serializer";

@@ -1,0 +1,10 @@
+{
+  "extends": "@csvora/config/tsconfig.library.json",
+  "compilerOptions": {
+    "rootDir": "./",
+    "outDir": "./dist",
+    "noEmit": true,
+    "types": ["bun"]
+  },
+  "include": ["src/**/*", "test/**/*"]
+}

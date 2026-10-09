@@ -20,6 +20,14 @@ import {
   setColumnTypeOverride,
   setColumnVisibility,
   setColumnWidth,
+  RENDERER_DEFINITIONS,
+  normalizeHeaderAlias,
+  inferDeparturesMapping,
+  isDeparturesConfigured,
+  setRenderer,
+  setDeparturesMapping,
+  resetDeparturesMapping,
+  resolveDepartureStatus,
 } from "../src";
 
 describe("@csvora/table-engine", () => {
@@ -655,6 +663,219 @@ describe("@csvora/table-engine", () => {
       // Semantic overrides are PRESERVED
       expect(layoutReset.columns[0]?.typeOverride).toBe("string");
       expect(layoutReset.columns[2]?.align).toBe("center");
+    });
+  });
+
+  describe("Renderer Definitions", () => {
+    it("provides registered renderer definitions for Table and Departures Board", () => {
+      expect(RENDERER_DEFINITIONS).toHaveLength(2);
+      expect(RENDERER_DEFINITIONS[0]?.id).toBe("table");
+      expect(RENDERER_DEFINITIONS[0]?.label).toBe("Table");
+      expect(RENDERER_DEFINITIONS[1]?.id).toBe("departures");
+      expect(RENDERER_DEFINITIONS[1]?.label).toBe("Departures Board");
+    });
+  });
+
+  describe("Departures Board Auto-Mapping & Configuration", () => {
+    it("normalizes header aliases reliably", () => {
+      expect(normalizeHeaderAlias("  departure_time  ")).toBe("departure time");
+      expect(normalizeHeaderAlias("Flight_Number")).toBe("flight number");
+      expect(normalizeHeaderAlias("DELAY_MINUTES")).toBe("delay minutes");
+      expect(normalizeHeaderAlias("gate")).toBe("gate");
+    });
+
+    it("auto-maps canonical and alias headers using stable column IDs", () => {
+      const doc: CsvDocument = {
+        headers: ["time", "flight", "destination", "gate", "delay"],
+        rows: [],
+        delimiter: ",",
+        rowCount: 0,
+        columnCount: 5,
+      };
+      const presentation = createDefaultPresentation(doc);
+      const mapping = inferDeparturesMapping(presentation.columns);
+
+      expect(mapping.timeColumnId).toBe("col_0");
+      expect(mapping.flightColumnId).toBe("col_1");
+      expect(mapping.destinationColumnId).toBe("col_2");
+      expect(mapping.gateColumnId).toBe("col_3");
+      expect(mapping.statusColumnId).toBe("col_4");
+      expect(isDeparturesConfigured(mapping, presentation.columns)).toBe(true);
+    });
+
+    it("auto-maps recognized aliases such as departure_time, flight no, city", () => {
+      const doc: CsvDocument = {
+        headers: ["departure_time", "flight no", "city", "gate_number", "delay_minutes"],
+        rows: [],
+        delimiter: ",",
+        rowCount: 0,
+        columnCount: 5,
+      };
+      const presentation = createDefaultPresentation(doc);
+      const mapping = inferDeparturesMapping(presentation.columns);
+
+      expect(mapping.timeColumnId).toBe("col_0");
+      expect(mapping.flightColumnId).toBe("col_1");
+      expect(mapping.destinationColumnId).toBe("col_2");
+      expect(mapping.gateColumnId).toBe("col_3");
+      expect(mapping.statusColumnId).toBe("col_4");
+      expect(isDeparturesConfigured(mapping, presentation.columns)).toBe(true);
+    });
+
+    it("leaves mapping unresolved if multiple candidate columns match an alias (ambiguity)", () => {
+      const doc: CsvDocument = {
+        headers: ["time", "departure_time", "flight", "destination", "gate"],
+        rows: [],
+        delimiter: ",",
+        rowCount: 0,
+        columnCount: 5,
+      };
+      const presentation = createDefaultPresentation(doc);
+      const mapping = inferDeparturesMapping(presentation.columns);
+
+      // Two columns match TIME ("time" and "departure_time") -> unresolved!
+      expect(mapping.timeColumnId).toBeUndefined();
+      expect(mapping.flightColumnId).toBe("col_2");
+      expect(mapping.destinationColumnId).toBe("col_3");
+      expect(mapping.gateColumnId).toBe("col_4");
+      expect(isDeparturesConfigured(mapping, presentation.columns)).toBe(false);
+    });
+
+    it("handles missing fields gracefully without throwing", () => {
+      const doc: CsvDocument = {
+        headers: ["first_name", "last_name", "email"],
+        rows: [],
+        delimiter: ",",
+        rowCount: 0,
+        columnCount: 3,
+      };
+      const presentation = createDefaultPresentation(doc);
+      const mapping = inferDeparturesMapping(presentation.columns);
+
+      expect(mapping.timeColumnId).toBeUndefined();
+      expect(mapping.flightColumnId).toBeUndefined();
+      expect(mapping.destinationColumnId).toBeUndefined();
+      expect(mapping.gateColumnId).toBeUndefined();
+      expect(mapping.statusColumnId).toBeUndefined();
+      expect(isDeparturesConfigured(mapping, presentation.columns)).toBe(false);
+    });
+
+    it("switches renderer, auto-infers departures mappings on first switch, and retains configuration across switches", () => {
+      const doc: CsvDocument = {
+        headers: ["time", "flight", "destination", "gate", "delay"],
+        rows: [],
+        delimiter: ",",
+        rowCount: 0,
+        columnCount: 5,
+      };
+      let pres = createDefaultPresentation(doc);
+      expect(pres.rendererId).toBe("table");
+
+      // Apply table customization (e.g. override alignment and width on flight)
+      pres = setColumnAlignment(pres, "col_1", "center");
+      pres = setColumnWidth(pres, "col_1", 160);
+
+      // 1. Switch to departures
+      pres = setRenderer(pres, "departures");
+      expect(pres.rendererId).toBe("departures");
+      expect(pres.rendererConfigs.departures?.timeColumnId).toBe("col_0");
+      expect(pres.rendererConfigs.departures?.flightColumnId).toBe("col_1");
+
+      // 2. Modify departures mapping manually (e.g. change flight to col_2)
+      pres = setDeparturesMapping(pres, {
+        ...pres.rendererConfigs.departures,
+        flightColumnId: "col_2",
+      });
+      expect(pres.rendererConfigs.departures?.flightColumnId).toBe("col_2");
+
+      // 3. Switch back to table
+      pres = setRenderer(pres, "table");
+      expect(pres.rendererId).toBe("table");
+      // Table customizations survived
+      expect(pres.columns[1]?.align).toBe("center");
+      expect(pres.columns[1]?.width).toBe(160);
+      // Departures custom config survived
+      expect(pres.rendererConfigs.departures?.flightColumnId).toBe("col_2");
+
+      // 4. Switch back to departures
+      pres = setRenderer(pres, "departures");
+      expect(pres.rendererId).toBe("departures");
+      expect(pres.rendererConfigs.departures?.flightColumnId).toBe("col_2");
+
+      // 5. Reset departures mapping restores automatic auto-mapping without resetting table overrides
+      pres = resetDeparturesMapping(pres);
+      expect(pres.rendererConfigs.departures?.flightColumnId).toBe("col_1");
+      expect(pres.columns[1]?.align).toBe("center");
+      expect(pres.columns[1]?.width).toBe(160);
+    });
+  });
+
+  describe("Departure Status & Delay Semantic Semantics", () => {
+    it("resolves positive numeric delays to DELAYED +X with warning intent", () => {
+      const res25 = resolveDepartureStatus("25");
+      expect(res25.text).toBe("DELAYED +25");
+      expect(res25.intent).toBe("warning");
+      expect(res25.isDimmedRow).toBe(false);
+
+      const res10 = resolveDepartureStatus("10");
+      expect(res10.text).toBe("DELAYED +10");
+      expect(res10.intent).toBe("warning");
+      expect(res10.isDimmedRow).toBe(false);
+    });
+
+    it("resolves zero numeric delay to ON TIME with success intent", () => {
+      const res0 = resolveDepartureStatus("0");
+      expect(res0.text).toBe("ON TIME");
+      expect(res0.intent).toBe("success");
+      expect(res0.isDimmedRow).toBe(false);
+    });
+
+    it("resolves negative numeric delay to EARLY with info intent", () => {
+      const resNeg = resolveDepartureStatus("-5");
+      expect(resNeg.text).toBe("EARLY");
+      expect(resNeg.intent).toBe("info");
+      expect(resNeg.isDimmedRow).toBe(false);
+    });
+
+    it("resolves empty or undefined status to CANCELLED with danger intent and dimmed row", () => {
+      const resEmpty = resolveDepartureStatus("");
+      expect(resEmpty.text).toBe("CANCELLED");
+      expect(resEmpty.intent).toBe("danger");
+      expect(resEmpty.isDimmedRow).toBe(true);
+
+      const resUndef = resolveDepartureStatus(undefined);
+      expect(resUndef.text).toBe("CANCELLED");
+      expect(resUndef.intent).toBe("danger");
+      expect(resUndef.isDimmedRow).toBe(true);
+    });
+
+    it("resolves explicit text status column values", () => {
+      const boarding = resolveDepartureStatus("BOARDING");
+      expect(boarding.text).toBe("BOARDING");
+      expect(boarding.intent).toBe("success");
+      expect(boarding.isDimmedRow).toBe(false);
+
+      const onTime = resolveDepartureStatus("On Time");
+      expect(onTime.text).toBe("ON TIME");
+      expect(onTime.intent).toBe("success");
+
+      const cancelled = resolveDepartureStatus("cancelled");
+      expect(cancelled.text).toBe("CANCELLED");
+      expect(cancelled.intent).toBe("danger");
+      expect(cancelled.isDimmedRow).toBe(true);
+
+      const early = resolveDepartureStatus("EARLY");
+      expect(early.text).toBe("EARLY");
+      expect(early.intent).toBe("info");
+
+      const delayed = resolveDepartureStatus("DELAYED");
+      expect(delayed.text).toBe("DELAYED");
+      expect(delayed.intent).toBe("warning");
+
+      const other = resolveDepartureStatus("GATE CLOSED");
+      expect(other.text).toBe("GATE CLOSED");
+      expect(other.intent).toBe("muted");
+      expect(other.isDimmedRow).toBe(false);
     });
   });
 

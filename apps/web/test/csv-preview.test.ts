@@ -11,6 +11,9 @@ import {
   setColumnTypeOverride,
   setColumnVisibility,
   setColumnWidth,
+  setRenderer,
+  setDeparturesMapping,
+  resetDeparturesMapping,
 } from "@csvora/table-engine";
 import type { LoadedCsvDocument } from "../src/features/csv-ingestion";
 
@@ -416,6 +419,80 @@ describe("CSV Preview Workspace & Presentation Integration", () => {
       expect(resetSelectedCol?.align).toBe("right"); // numeric default
       expect(resetSelectedCol?.width).toBeUndefined();
       expect(resetSelectedCol?.visible).toBe(true);
+    });
+  });
+
+  describe("Renderer Switching & Departures Board Integration", () => {
+    const flightDocument: LoadedCsvDocument = {
+      file: {
+        name: "departures.csv",
+        size: 512,
+        type: "text/csv",
+        lastModified: 1700000000000,
+      },
+      document: {
+        headers: ["time", "flight", "destination", "gate", "delay"],
+        rows: [
+          { index: 0, lineNumber: 2, fields: ["08:15", "LH 441", "Frankfurt", "B07", "0"] },
+          { index: 1, lineNumber: 3, fields: ["08:30", "BA 117", "London", "A12", "25"] },
+        ],
+        delimiter: ",",
+        rowCount: 2,
+        columnCount: 5,
+      },
+      diagnostics: [],
+      rawTextLength: 120,
+    };
+
+    it("switches renderer to departures and preserves table column presentation", () => {
+      let pres = createDefaultPresentation(flightDocument.document);
+      expect(pres.rendererId).toBe("table");
+
+      // Set width and center alignment on flight column in table mode
+      pres = setColumnWidth(pres, "col_1", 180);
+      pres = setColumnAlignment(pres, "col_1", "center");
+
+      // Switch to departures renderer
+      pres = setRenderer(pres, "departures");
+      expect(pres.rendererId).toBe("departures");
+
+      // Auto-mapping automatically populated
+      expect(pres.rendererConfigs.departures?.timeColumnId).toBe("col_0");
+      expect(pres.rendererConfigs.departures?.flightColumnId).toBe("col_1");
+      expect(pres.rendererConfigs.departures?.destinationColumnId).toBe("col_2");
+      expect(pres.rendererConfigs.departures?.gateColumnId).toBe("col_3");
+      expect(pres.rendererConfigs.departures?.statusColumnId).toBe("col_4");
+
+      // Table presentation settings are preserved
+      expect(pres.columns[1]?.width).toBe(180);
+      expect(pres.columns[1]?.align).toBe("center");
+
+      // Switch back to table
+      pres = setRenderer(pres, "table");
+      expect(pres.rendererId).toBe("table");
+      expect(pres.columns[1]?.width).toBe(180);
+      expect(pres.columns[1]?.align).toBe("center");
+
+      // Switch back to departures - retains auto-mappings
+      pres = setRenderer(pres, "departures");
+      expect(pres.rendererId).toBe("departures");
+      expect(pres.rendererConfigs.departures?.destinationColumnId).toBe("col_2");
+    });
+
+    it("allows updating and resetting departures mappings independently from table overrides", () => {
+      let pres = createDefaultPresentation(flightDocument.document);
+      pres = setRenderer(pres, "departures");
+
+      // Manually remap gate to col_0
+      pres = setDeparturesMapping(pres, {
+        ...pres.rendererConfigs.departures,
+        gateColumnId: "col_0",
+      });
+      expect(pres.rendererConfigs.departures?.gateColumnId).toBe("col_0");
+
+      // Reset departures mappings restores inferred gate
+      pres = resetDeparturesMapping(pres);
+      expect(pres.rendererConfigs.departures?.gateColumnId).toBe("col_3");
     });
   });
 });

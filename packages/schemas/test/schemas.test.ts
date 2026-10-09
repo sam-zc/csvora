@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   columnPresentationSchema,
   columnWidthSchema,
+  departuresConfigSchema,
   healthResponseSchema,
   presentationConfigSchema,
   rendererIdSchema,
@@ -41,7 +42,27 @@ describe("@csvora/schemas", () => {
 
   it("validates renderer id", () => {
     expect(rendererIdSchema.parse("table")).toBe("table");
+    expect(rendererIdSchema.parse("departures")).toBe("departures");
     expect(() => rendererIdSchema.parse("unknown_renderer")).toThrow();
+    expect(() => rendererIdSchema.parse("periodic")).toThrow();
+  });
+
+  it("validates departures configuration schema", () => {
+    const config = departuresConfigSchema.parse({
+      timeColumnId: "col_0",
+      flightColumnId: "col_1",
+      destinationColumnId: "col_2",
+      gateColumnId: "col_3",
+      statusColumnId: "col_4",
+    });
+    expect(config.timeColumnId).toBe("col_0");
+    expect(config.statusColumnId).toBe("col_4");
+
+    const partialConfig = departuresConfigSchema.parse({
+      timeColumnId: "col_0",
+    });
+    expect(partialConfig.timeColumnId).toBe("col_0");
+    expect(partialConfig.flightColumnId).toBeUndefined();
   });
 
   it("validates column presentation configuration", () => {
@@ -106,8 +127,15 @@ describe("@csvora/schemas", () => {
         { id: "col_0", sourceIndex: 0, header: "Title", visible: true, align: "left" },
         { id: "col_1", sourceIndex: 1, header: "Score", visible: true, align: "right" },
       ],
+      rendererConfigs: {
+        departures: {
+          timeColumnId: "col_0",
+          flightColumnId: "col_1",
+        },
+      },
     });
     expect(presentation.rendererId).toBe("table");
     expect(presentation.columns).toHaveLength(2);
+    expect(presentation.rendererConfigs.departures?.timeColumnId).toBe("col_0");
   });
 });

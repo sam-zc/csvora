@@ -1,13 +1,34 @@
 export * from "./table";
 export * from "./format";
 export * from "./presentation";
-export { MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH, columnWidthSchema } from "@csvora/schemas";
+export {
+  MIN_COLUMN_WIDTH,
+  MAX_COLUMN_WIDTH,
+  columnWidthSchema,
+  columnFormatSchema,
+  numberFormatOptionsSchema,
+  currencyFormatOptionsSchema,
+  percentFormatOptionsSchema,
+  dateFormatOptionsSchema,
+  booleanFormatOptionsSchema,
+  textFormatOptionsSchema,
+  departuresConfigSchema,
+  rendererConfigsSchema,
+} from "@csvora/schemas";
 export type {
   TableConfig,
   TableConfigInput,
   ColumnDefinition,
   ColumnInput,
   ColumnType,
+  ColumnFormat,
+  ColumnFormatInput,
+  NumberFormatOptions,
+  CurrencyFormatOptions,
+  PercentFormatOptions,
+  DateFormatOptions,
+  BooleanFormatOptions,
+  TextFormatOptions,
   RendererId,
   ColumnAlign,
   ColumnWidth,
@@ -17,4 +38,8 @@ export type {
   TablePresentationConfigInput,
   PresentationConfig,
   PresentationConfigInput,
+  DeparturesConfig,
+  DeparturesConfigInput,
+  RendererConfigs,
+  RendererConfigsInput,
 } from "@csvora/schemas";

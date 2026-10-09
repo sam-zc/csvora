@@ -3,9 +3,11 @@
 import type { CsvDocument } from "@csvora/csv-core";
 import {
   type ColumnAlign,
+  type ColumnFormat,
   type ColumnPresentation,
   type ColumnType,
-  type TablePresentationConfig,
+  type DeparturesConfig,
+  type PresentationConfig,
   MIN_COLUMN_WIDTH,
   MAX_COLUMN_WIDTH,
   canHideColumn,
@@ -31,13 +33,18 @@ import {
 export interface ColumnInspectorSidebarProps {
   readonly column: ColumnPresentation | null;
   readonly document: CsvDocument;
-  readonly presentation: TablePresentationConfig;
+  readonly presentation: PresentationConfig;
   readonly onSelectColumn: (columnId: string | null) => void;
   readonly onUpdateType: (columnId: string, typeOverride: ColumnType | undefined) => void;
   readonly onUpdateAlign: (columnId: string, align: ColumnAlign) => void;
   readonly onUpdateVisibility: (columnId: string, visible: boolean) => void;
   readonly onUpdateWidth: (columnId: string, width: number | undefined) => void;
+  readonly onUpdateFormat?:
+    | ((columnId: string, format: ColumnFormat | undefined) => void)
+    | undefined;
   readonly onResetColumn: (columnId: string) => void;
+  readonly onUpdateDeparturesMapping?: ((mapping: DeparturesConfig) => void) | undefined;
+  readonly onResetDeparturesMapping?: (() => void) | undefined;
   readonly isOpen?: boolean | undefined;
   readonly onClose?: (() => void) | undefined;
 }
@@ -53,13 +60,133 @@ function getTypeBadgeVariant(type: ColumnType): "default" | "secondary" | "outli
   }
 }
 
+function DeparturesMappingSection({
+  presentation,
+  onUpdateDeparturesMapping,
+  onResetDeparturesMapping,
+}: {
+  readonly presentation: PresentationConfig;
+  readonly onUpdateDeparturesMapping?: ((mapping: DeparturesConfig) => void) | undefined;
+  readonly onResetDeparturesMapping?: (() => void) | undefined;
+}) {
+  const departuresConfig = presentation.rendererConfigs.departures;
+
+  const headerCounts = new Map<string, number>();
+  for (const c of presentation.columns) {
+    const norm = c.header.trim().toLowerCase();
+    headerCounts.set(norm, (headerCounts.get(norm) ?? 0) + 1);
+  }
+  const duplicateHeaderNames = new Set(
+    Array.from(headerCounts.entries())
+      .filter((entry) => entry[1] > 1)
+      .map((entry) => entry[0]),
+  );
+
+  const roles = [
+    { key: "timeColumnId" as const, label: "Time", required: true, id: "dep-map-time" },
+    { key: "flightColumnId" as const, label: "Flight", required: true, id: "dep-map-flight" },
+    {
+      key: "destinationColumnId" as const,
+      label: "Destination",
+      required: true,
+      id: "dep-map-destination",
+    },
+    { key: "gateColumnId" as const, label: "Gate", required: true, id: "dep-map-gate" },
+    {
+      key: "statusColumnId" as const,
+      label: "Status / Delay",
+      required: false,
+      id: "dep-map-status",
+    },
+  ];
+
+  return (
+    <div className="p-3.5 border-b border-border/70 space-y-3 bg-muted/20">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground font-mono">
+            Renderer
+          </div>
+          <h3 className="text-xs font-semibold text-foreground">Departures Board</h3>
+        </div>
+        {onResetDeparturesMapping && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onResetDeparturesMapping}
+            className="h-6 text-[10px] px-2 text-muted-foreground hover:text-foreground cursor-pointer"
+            aria-label="Reset mappings"
+          >
+            Reset mappings
+          </Button>
+        )}
+      </div>
+
+      <div className="space-y-2.5 text-xs">
+        {roles.map((role) => {
+          const currentVal = departuresConfig?.[role.key] ?? "unmapped";
+          return (
+            <div key={role.key} className="space-y-1">
+              <div className="flex items-center justify-between text-[11px]">
+                <label htmlFor={role.id} className="font-medium text-foreground">
+                  {role.label}
+                </label>
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  {role.required ? "Required" : "Optional"}
+                </span>
+              </div>
+              <Select
+                value={currentVal}
+                onValueChange={(val) => {
+                  onUpdateDeparturesMapping?.({
+                    ...departuresConfig,
+                    [role.key]: val === "unmapped" ? undefined : val,
+                  });
+                }}
+              >
+                <SelectTrigger
+                  id={role.id}
+                  aria-label={`Map ${role.label} column`}
+                  className="h-7 text-xs bg-background"
+                >
+                  <SelectValue placeholder="Select column" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unmapped">
+                    <span className="text-muted-foreground italic">None (unmapped)</span>
+                  </SelectItem>
+                  {presentation.columns.map((col) => {
+                    const isDup = duplicateHeaderNames.has(col.header.trim().toLowerCase());
+                    const label = getColumnDisplayLabel(col);
+                    return (
+                      <SelectItem key={col.id} value={col.id}>
+                        <span>{label}</span>
+                        {isDup && (
+                          <span className="text-muted-foreground ml-1 font-mono text-[10px]">
+                            ({col.id})
+                          </span>
+                        )}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /**
  * Persistent sidebar inspector for the Visual Editor Workspace.
  *
- * When a column is selected in the editor, this panel displays its metadata,
- * detected and effective type, alignment, custom width, and visibility controls.
- * When no column is selected, it presents an intentional, editorial overview
- * guiding the user to interact with the design canvas.
+ * Displays:
+ * 1. Renderer-level settings (such as Departures Board field mappings) when active.
+ * 2. Column-level settings (type override, alignment, width, visibility) for the selected column.
+ * 3. Dataset overview and helpful guidance when no column is selected.
  */
 export function ColumnInspectorSidebar({
   column,
@@ -70,13 +197,18 @@ export function ColumnInspectorSidebar({
   onUpdateAlign,
   onUpdateVisibility,
   onUpdateWidth,
+  onUpdateFormat,
   onResetColumn,
+  onUpdateDeparturesMapping,
+  onResetDeparturesMapping,
   isOpen = true,
   onClose,
 }: ColumnInspectorSidebarProps) {
   if (!isOpen) {
     return null;
   }
+
+  const isDeparturesRenderer = presentation.rendererId === "departures";
 
   // --- Empty Selection State ---
   if (!column) {
@@ -88,7 +220,7 @@ export function ColumnInspectorSidebar({
         aria-label="Column Inspector"
         className="w-72 lg:w-80 shrink-0 border-r border-border/80 bg-surface flex flex-col h-full overflow-y-auto"
       >
-        <div className="p-4 border-b border-border/60 flex items-center justify-between">
+        <div className="p-3.5 border-b border-border/60 flex items-center justify-between shrink-0">
           <span className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground font-mono">
             Inspector
           </span>
@@ -104,9 +236,17 @@ export function ColumnInspectorSidebar({
           )}
         </div>
 
+        {isDeparturesRenderer && (
+          <DeparturesMappingSection
+            presentation={presentation}
+            onUpdateDeparturesMapping={onUpdateDeparturesMapping}
+            onResetDeparturesMapping={onResetDeparturesMapping}
+          />
+        )}
+
         <div className="p-6 flex flex-col items-center text-center space-y-4 my-auto">
           <div className="size-12 rounded-xl bg-muted/60 border border-border/70 flex items-center justify-center text-muted-foreground">
-            {/* Table column selector icon */}
+            {/* Column selector icon */}
             <svg
               className="size-6 text-muted-foreground/80"
               fill="none"
@@ -172,7 +312,13 @@ export function ColumnInspectorSidebar({
   const isAlignModified = column.align !== defaultAlign;
   const isWidthModified = column.width !== undefined;
   const isVisibilityModified = !column.visible;
-  const isModified = isTypeOverridden || isAlignModified || isWidthModified || isVisibilityModified;
+  const isFormatModified = column.format !== undefined;
+  const isModified =
+    isTypeOverridden ||
+    isAlignModified ||
+    isWidthModified ||
+    isVisibilityModified ||
+    isFormatModified;
   const canHide = canHideColumn(presentation, column.id);
 
   const profile = getColumnProfile(document, column.sourceIndex);
@@ -193,8 +339,16 @@ export function ColumnInspectorSidebar({
   return (
     <aside
       aria-label="Column Inspector"
-      className="w-72 lg:w-80 shrink-0 border-r border-border/80 bg-surface flex flex-col h-full overflow-hidden"
+      className="w-72 lg:w-80 shrink-0 border-r border-border/80 bg-surface flex flex-col h-full overflow-y-auto"
     >
+      {isDeparturesRenderer && (
+        <DeparturesMappingSection
+          presentation={presentation}
+          onUpdateDeparturesMapping={onUpdateDeparturesMapping}
+          onResetDeparturesMapping={onResetDeparturesMapping}
+        />
+      )}
+
       {/* Sidebar Header */}
       <div className="p-3.5 border-b border-border/70 flex items-center justify-between bg-surface-muted/30 shrink-0">
         <div className="min-w-0 pr-2">
@@ -334,6 +488,72 @@ export function ColumnInspectorSidebar({
             </SelectContent>
           </Select>
         </div>
+
+        {/* Semantic Number / Currency Format Control */}
+        {effectiveType === "number" && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor={`format-select-${column.id}`}
+                className="text-xs font-medium text-foreground"
+              >
+                Number format
+              </label>
+              {column.format && (
+                <span className="text-[10px] font-semibold text-accent font-mono capitalize">
+                  {column.format.kind === "currency"
+                    ? column.format.options.currency
+                    : column.format.kind}
+                </span>
+              )}
+            </div>
+
+            <Select
+              value={
+                column.format?.kind === "currency"
+                  ? `currency-${column.format.options.currency}`
+                  : column.format?.kind === "percent"
+                    ? "percent"
+                    : "standard"
+              }
+              onValueChange={(val) => {
+                if (!onUpdateFormat) return;
+                if (val === "currency-INR") {
+                  onUpdateFormat(column.id, {
+                    kind: "currency",
+                    options: { currency: "INR", locale: "en-IN" },
+                  });
+                } else if (val === "currency-USD") {
+                  onUpdateFormat(column.id, {
+                    kind: "currency",
+                    options: { currency: "USD", locale: "en-US" },
+                  });
+                } else if (val === "percent") {
+                  onUpdateFormat(column.id, {
+                    kind: "percent",
+                    options: { locale: "en-US" },
+                  });
+                } else {
+                  onUpdateFormat(column.id, undefined);
+                }
+              }}
+            >
+              <SelectTrigger
+                id={`format-select-${column.id}`}
+                aria-label={`Number format for column ${displayLabel}`}
+                className="h-8 text-xs cursor-pointer bg-background"
+              >
+                <SelectValue placeholder="Standard (raw)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="standard">Standard (raw)</SelectItem>
+                <SelectItem value="currency-INR">Currency (INR ₹)</SelectItem>
+                <SelectItem value="currency-USD">Currency (USD $)</SelectItem>
+                <SelectItem value="percent">Percentage (%)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {/* Alignment Control */}
         <div className="space-y-1.5">

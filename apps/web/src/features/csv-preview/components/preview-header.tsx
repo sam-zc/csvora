@@ -1,8 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Badge, Button } from "@csvora/ui";
+import { RENDERER_DEFINITIONS, setRenderer } from "@csvora/table-engine";
+import {
+  Badge,
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@csvora/ui";
 import { CsvDiagnostics, formatFileSize } from "../../csv-ingestion";
+import { ExportMenu } from "../../export";
 import type { PreviewHeaderProps } from "../types";
 import { ColumnManager } from "./column-manager";
 
@@ -94,18 +104,41 @@ export function PreviewHeader({
 
         {/* Right: Actions & Tools */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Renderer concept badge */}
+          {/* Renderer Selector */}
           <div
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border/60 bg-muted/40 text-xs select-none"
-            title="Active presentation renderer"
+            className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-border/60 bg-muted/40 text-xs"
+            title="Active visual renderer"
           >
-            <span className="text-muted-foreground text-[10px] uppercase font-semibold tracking-wider font-mono">
+            <label
+              htmlFor="renderer-select"
+              className="text-muted-foreground text-[10px] uppercase font-semibold tracking-wider font-mono shrink-0 select-none"
+            >
               Renderer
-            </span>
-            <span className="font-semibold text-foreground font-mono text-[11px] flex items-center gap-1">
-              <span className="size-1.5 rounded-full bg-accent shrink-0" />
-              Table
-            </span>
+            </label>
+            <Select
+              value={presentation.rendererId}
+              onValueChange={(val) => {
+                if (val === "table" || val === "departures") {
+                  onUpdatePresentation?.(setRenderer(presentation, val));
+                }
+              }}
+            >
+              <SelectTrigger
+                id="renderer-select"
+                aria-label="Active visual renderer"
+                className="h-7 text-xs font-mono font-semibold bg-background border-border/50 gap-1.5 px-2 cursor-pointer"
+              >
+                <span className="size-1.5 rounded-full bg-accent shrink-0" aria-hidden="true" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                {RENDERER_DEFINITIONS.map((def) => (
+                  <SelectItem key={def.id} value={def.id}>
+                    <span className="font-medium font-sans">{def.label}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Diagnostics Trigger if issues exist */}
@@ -135,6 +168,9 @@ export function PreviewHeader({
               onUpdatePresentation={onUpdatePresentation}
             />
           )}
+
+          {/* Export Action */}
+          <ExportMenu document={document} presentation={presentation} sourceFilename={file.name} />
 
           {/* Reset Presentation Action when modified */}
           {hasPresentationChanges && onResetPresentation && (

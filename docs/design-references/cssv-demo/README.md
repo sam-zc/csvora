@@ -68,7 +68,9 @@ Do not copy labels or content literally.
 
 #### `periodic-table.png`
 
-Use as a strong reference for:
+> **Note**: Conceptual inspiration only. Not an implementation target unless explicitly requested in a future task.
+
+Use as a conceptual reference for:
 
 - dense visual information
 - grouped categorical color systems
@@ -179,18 +181,23 @@ The CSV source remains ordinary CSV.
 
 Presentation must remain separate from source data.
 
-Future renderers may include:
+### Supported Renderers in CSVora
 
-- standard data table
+CSVora presently supports:
+
+- **Table**: Standard interactive tabular view with column formatting, type overrides, reordering, visibility, and virtualization
+- **Departures Board**: Specialized high-contrast airport departures display with split-flap presentation, conservative role auto-mapping, and status semantics
+
+Future renderers under consideration may include:
+
 - financial report
-- airport departure board
 - document/report layout
 - cards
 - terminal-style view
 - chat-style layout
 - specialized visualizations
 
-The architecture should not assume that every CSV will ultimately be displayed as an HTML table.
+The architecture does not assume that every CSV will ultimately be displayed as an HTML table.
 
 ## Important Distinction
 

@@ -1,0 +1,28 @@
+{
+  "name": "@csvora/export",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint src test"
+  },
+  "dependencies": {
+    "@csvora/csv-core": "workspace:*",
+    "@csvora/schemas": "workspace:*",
+    "@csvora/table-engine": "workspace:*"
+  },
+  "devDependencies": {
+    "@csvora/config": "workspace:*"
+  }
+}

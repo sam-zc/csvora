@@ -66,11 +66,19 @@ The portable, framework-independent presentation model specifying how a `CsvDocu
 
 ### Renderer
 
-A distinct visual presentation strategy (e.g., table preview, card view, report) responsible for rendering a `CsvDocument` according to a `PresentationConfig`.
+A distinct visual presentation strategy (e.g., table preview, airport departures board) responsible for rendering a `CsvDocument` according to a `PresentationConfig`.
 
 ### RendererId
 
-A canonical identifier denoting the active visual renderer (such as `'table'`).
+A canonical identifier denoting the active visual renderer (`'table'` or `'departures'`).
+
+### Renderer Definition
+
+Metadata registered in `@csvora/table-engine` describing a supported visual presentation strategy, comprising a canonical `RendererId`, display label, and human-facing description.
+
+### Departures Mapping
+
+The field association model in `DeparturesConfig` mapping semantic flight board roles (`time`, `flight`, `destination`, `gate`, `status`) to stable presentation column IDs without altering source CSV headers or row cells.
 
 ### Formula Injection Risk
 
@@ -98,7 +106,7 @@ A presentation operation that restores source column order, reveals all hidden c
 
 ### Renderer-Specific Config
 
-Presentation configuration properties that govern layout or behaviors specific to a particular visual renderer (such as column width in tabular views) rather than generic semantic column data.
+Presentation configuration properties that govern layout or behaviors specific to a particular visual renderer (such as departures role mappings or column widths in tabular views) rather than generic semantic column data, retained across renderer switching.
 
 ### Editor Workspace
 
@@ -112,13 +120,30 @@ The transient, client-side UI selection state (`selectedColumnId`) identifying t
 
 The warm off-white, textured workspace surface (`--canvas-bg`, `--canvas-dot`) that provides generous spatial padding and visual grounding for active data renderers.
 
+### Export Pipeline
+
+The portable architectural layer responsible for serializing CsvDocuments into portable formats (CSV, Markdown, JSON) across web, desktop, and CLI interfaces without coupling to React or browser DOM APIs.
+
+### Raw Export
+
+An export operation that faithfully serializes original CsvDocument values in their source column and row order, preserving all columns (including hidden ones), empty headers, duplicate headers, and unmapped extra fields.
+
+### Formatted Export
+
+An export operation that respects active presentation semantics: exporting only visible columns in presentation order, applying semantic cell formatting rules, and formatting values for human consumption.
+
+### Formula Safety Policy
+
+An explicit security configuration (`"escape"` or `"preserve"`) governing spreadsheet formula neutralization during export. Under the `"escape"` policy, cells starting with formula-trigger characters (`=`, `+`, `-`, `@`) are safely prefixed with a single quote `'` to prevent spreadsheet formula injection.
+
 ---
 
 ## Package Boundary Rules
 
-- **`@csvora/csv-core`**: Owns CSV parsing abstractions, line normalization, and delimiter detection. Pure, portable TypeScript. Zero dependencies on React, Fastify, DOM, or database engines.
+- **`@csvora/csv-core`**: Owns CSV parsing abstractions, line normalization, delimiter detection, and RFC 4180 CSV serialization. Pure, portable TypeScript. Zero dependencies on React, Fastify, DOM, or database engines.
 - **`@csvora/table-engine`**: Owns table configuration manipulation and cell formatting logic. Pure, portable TypeScript. Framework-independent.
 - **`@csvora/schemas`**: Owns shared runtime contracts using Zod. Single source of truth for validated types (`TableConfig`, `HealthResponse`).
+- **`@csvora/export`**: Owns portable format exports (raw CSV, formatted CSV, Markdown, JSON), file naming helpers, and export safety policies. Pure, portable TypeScript. Zero dependencies on React, Next.js, Fastify, DOM, or browser download APIs.
 - **`@csvora/ui`**: Owns reusable React presentation components built with shadcn/ui and Tailwind CSS. Strictly presentation; never holds CSV parsing or backend logic.
 - **`apps/web`**: Browser frontend application built with Next.js App Router.
 - **`apps/api`**: Standalone backend HTTP service built with Fastify on the Bun runtime.

@@ -3,7 +3,12 @@
 import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@csvora/ui";
-import { MIN_COLUMN_WIDTH, getColumnDisplayLabel, getVisibleColumns } from "@csvora/table-engine";
+import {
+  MIN_COLUMN_WIDTH,
+  formatPresentationValue,
+  getColumnDisplayLabel,
+  getVisibleColumns,
+} from "@csvora/table-engine";
 import type { TableRendererProps } from "../types";
 
 /**
@@ -261,6 +266,7 @@ export function DefaultTableRenderer({
                     {/* Data Cells */}
                     {visibleColumns.map((col) => {
                       const rawValue = row.fields[col.sourceIndex];
+                      const formattedValue = formatPresentationValue(rawValue, col);
                       const isEmpty = rawValue === undefined || rawValue === "";
                       const isSelected = selectedColumnId === col.id;
 
@@ -285,7 +291,7 @@ export function DefaultTableRenderer({
                                 ? "text-center"
                                 : "text-left",
                           )}
-                          title={rawValue ?? ""}
+                          title={formattedValue || rawValue || ""}
                         >
                           {isEmpty ? (
                             <span
@@ -295,7 +301,7 @@ export function DefaultTableRenderer({
                               —
                             </span>
                           ) : (
-                            rawValue
+                            formattedValue
                           )}
                         </td>
                       );

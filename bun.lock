@@ -30,6 +30,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@csvora/csv-core": "workspace:*",
+        "@csvora/export": "workspace:*",
         "@csvora/schemas": "workspace:*",
         "@csvora/table-engine": "workspace:*",
         "@csvora/ui": "workspace:*",
@@ -57,6 +58,18 @@
     "packages/csv-core": {
       "name": "@csvora/csv-core",
       "version": "0.1.0",
+      "devDependencies": {
+        "@csvora/config": "workspace:*",
+      },
+    },
+    "packages/export": {
+      "name": "@csvora/export",
+      "version": "0.1.0",
+      "dependencies": {
+        "@csvora/csv-core": "workspace:*",
+        "@csvora/schemas": "workspace:*",
+        "@csvora/table-engine": "workspace:*",
+      },
       "devDependencies": {
         "@csvora/config": "workspace:*",
       },
@@ -124,6 +137,8 @@
     "@csvora/config": ["@csvora/config@workspace:packages/config"],
 
     "@csvora/csv-core": ["@csvora/csv-core@workspace:packages/csv-core"],
+
+    "@csvora/export": ["@csvora/export@workspace:packages/export"],
 
     "@csvora/schemas": ["@csvora/schemas@workspace:packages/schemas"],
 
