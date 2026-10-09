@@ -30,14 +30,14 @@ Canonical extracted frames:
 
 The canonical extraction timings from `reference.mp4` are:
 
-| Time | File | Purpose |
-|---|---|---|
-| `00:00:01.0` | `raw-csv.png` | Neutral/raw CSV presentation and workspace restraint |
-| `00:00:06.5` | `departures-board.png` | High-contrast dark renderer, status colors, typography, spacing |
-| `00:00:13.5` | `document.png` | Editorial/document/report presentation |
-| `00:00:21.5` | `periodic-table.png` | Dense structured visualization, grouped cards, color hierarchy |
-| `00:00:28.5` | `chat-view.png` | Mobile/chat-style transformation and narrow-layout presentation |
-| `00:00:33.5` | `remote-view.png` | Highly specialized object/control-style renderer |
+| Time         | File                    | Purpose                                                          |
+| ------------ | ----------------------- | ---------------------------------------------------------------- |
+| `00:00:01.0` | `raw-csv.png`           | Neutral/raw CSV presentation and workspace restraint             |
+| `00:00:06.5` | `departures-board.png`  | High-contrast dark renderer, status colors, typography, spacing  |
+| `00:00:13.5` | `document.png`          | Editorial/document/report presentation                           |
+| `00:00:21.5` | `periodic-table.png`    | Dense structured visualization, grouped cards, color hierarchy   |
+| `00:00:28.5` | `chat-view.png`         | Mobile/chat-style transformation and narrow-layout presentation  |
+| `00:00:33.5` | `remote-view.png`       | Highly specialized object/control-style renderer                 |
 | `00:00:36.0` | `renderer-overview.png` | Overall concept: one CSV, multiple radically different renderers |
 
 If frames need to be regenerated, prefer these timestamps rather than evenly spaced extraction.
@@ -168,12 +168,11 @@ Avoid excessive:
 
 CSVora must support the conceptual pipeline:
 
-CSV Data
-+
-Presentation Configuration
-+
+CSV Data +
+Presentation Configuration +
 Renderer
 =
+
 Visual Output
 
 The CSV source remains ordinary CSV.

@@ -363,4 +363,98 @@ test.describe("CSV Preview Workspace and Default Table Renderer", () => {
     await expect(page.getByRole("cell", { name: "98" })).toHaveClass(/text-right/);
     await expect(resetPresentationBtn).not.toBeVisible();
   });
+
+  test("provides complete visual editor workspace workflow: shell verification, column selection, persistent inspector controls, reselection, deselect, columns manager, and reset", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    // 1. Upload financial.csv fixture
+    const fixturePath = path.join(__dirname, "fixtures", "financial.csv");
+    const fileInput = page.locator("#csv-file-input");
+    await fileInput.setInputFiles(fixturePath);
+
+    // 2. Summary screen & Continue to editor
+    await expect(page.getByRole("heading", { name: "financial.csv" })).toBeVisible();
+    await page.getByRole("button", { name: "Continue to preview" }).click();
+
+    // 3. Verify editor shell elements
+    await expect(page.getByText("CSVora")).toBeVisible();
+    await expect(page.getByText("Renderer")).toBeVisible();
+    await expect(page.getByText("Table", { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("region", { name: "CSV data table" })).toBeVisible();
+
+    // 4. Verify Inspector starts in empty selection state
+    await expect(page.getByRole("heading", { name: "Select a column" })).toBeVisible();
+    await expect(
+      page.getByText("Click any column header in the table to inspect properties"),
+    ).toBeVisible();
+
+    // 5. Select "revenue" column by clicking its header
+    const revenueHeader = page.getByRole("columnheader", { name: /revenue/i });
+    await expect(revenueHeader).toBeVisible();
+    await revenueHeader.click();
+
+    // 6. Inspector displays revenue column properties
+    await expect(page.getByRole("heading", { name: "revenue" })).toBeVisible();
+    await expect(page.getByText("Detected Type")).toBeVisible();
+    await expect(page.getByText("number").first()).toBeVisible();
+    await expect(page.getByText("Non-empty:")).toBeVisible();
+
+    // 7. Change alignment to center and override width to 200
+    await page.getByRole("radio", { name: "center" }).click();
+    const preset200Btn = page.getByRole("button", { name: "200", exact: true });
+    await preset200Btn.click();
+
+    // Verify cell 45000 is centered
+    const revenueCell = page.getByRole("cell", { name: "45000" });
+    await expect(revenueCell).toBeVisible();
+    await expect(revenueCell).toHaveClass(/text-center/);
+
+    // 8. Select another column: "category"
+    const categoryHeader = page.getByRole("columnheader", { name: /category/i });
+    await categoryHeader.click();
+
+    // Inspector immediately updates to "category"
+    await expect(page.getByRole("heading", { name: "category" })).toBeVisible();
+    await expect(page.getByText("string").first()).toBeVisible();
+
+    // 9. Deselect via Deselect button
+    const deselectBtn = page.getByRole("button", { name: "Deselect column" });
+    await deselectBtn.click();
+    await expect(page.getByRole("heading", { name: "Select a column" })).toBeVisible();
+
+    // 10. Re-select and deselect via Escape key
+    await revenueHeader.click();
+    await expect(page.getByRole("heading", { name: "revenue" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("heading", { name: "Select a column" })).toBeVisible();
+
+    // 11. Open Columns manager and hide status column
+    const manageColumnsBtn = page.getByRole("button", { name: "Manage columns" });
+    await manageColumnsBtn.click();
+    const hideStatusBtn = page.getByRole("button", { name: "Hide status" });
+    await hideStatusBtn.click();
+    await expect(page.getByRole("columnheader", { name: /status/i })).not.toBeVisible();
+    await page.keyboard.press("Escape");
+
+    // 12. Reset presentation restores defaults
+    const resetPresentationBtn = page.getByRole("button", {
+      name: "Reset presentation to default inferred settings",
+    });
+    await expect(resetPresentationBtn).toBeVisible();
+    await resetPresentationBtn.click();
+
+    // Revenue returns to right alignment
+    await expect(revenueCell).toHaveClass(/text-right/);
+    // Status column is visible again
+    await expect(page.getByRole("columnheader", { name: /status/i })).toBeVisible();
+
+    // 13. Change file returns cleanly to dropzone
+    const changeFileBtn = page.getByRole("button", {
+      name: "Change CSV file and return to upload",
+    });
+    await changeFileBtn.click();
+    await expect(page.getByRole("button", { name: "Upload CSV or tabular file" })).toBeVisible();
+  });
 });

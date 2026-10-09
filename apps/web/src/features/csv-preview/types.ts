@@ -21,16 +21,22 @@ export interface PreviewHeaderProps {
   readonly onReset: () => void;
   readonly onResetPresentation?: (() => void) | undefined;
   readonly hasPresentationChanges?: boolean | undefined;
+  readonly isSidebarOpen?: boolean | undefined;
+  readonly onToggleSidebar?: (() => void) | undefined;
 }
 
 export interface RendererHostProps {
   readonly document: CsvDocument;
   readonly presentation: PresentationConfig;
   readonly onUpdatePresentation?: ((presentation: TablePresentationConfig) => void) | undefined;
+  readonly selectedColumnId?: string | null | undefined;
+  readonly onSelectColumn?: ((columnId: string | null) => void) | undefined;
 }
 
 export interface TableRendererProps {
   readonly document: CsvDocument;
   readonly presentation: TablePresentationConfig;
   readonly onUpdatePresentation?: ((presentation: TablePresentationConfig) => void) | undefined;
+  readonly selectedColumnId?: string | null | undefined;
+  readonly onSelectColumn?: ((columnId: string | null) => void) | undefined;
 }

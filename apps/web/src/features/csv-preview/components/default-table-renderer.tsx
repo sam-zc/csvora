@@ -3,40 +3,31 @@
 import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@csvora/ui";
-import {
-  MIN_COLUMN_WIDTH,
-  canHideColumn,
-  getColumnDisplayLabel,
-  getVisibleColumns,
-  resetColumnPresentation,
-  setColumnAlignment,
-  setColumnTypeOverride,
-  setColumnVisibility,
-  setColumnWidth,
-} from "@csvora/table-engine";
+import { MIN_COLUMN_WIDTH, getColumnDisplayLabel, getVisibleColumns } from "@csvora/table-engine";
 import type { TableRendererProps } from "../types";
-import { ColumnInspector } from "./column-inspector";
 
 /**
- * Default Table Renderer for CSVora.
+ * Default Table Renderer for CSVora Visual Editor Workspace.
  *
  * Capabilities:
  * - Fully semantic, accessible table markup (<table role="table">, <thead>, <tbody>, <th scope="col">).
  * - High-performance row virtualization powered by @tanstack/react-virtual: renders smoothly across
  *   thousands of rows without DOM thrashing or UI freezing.
  * - Horizontal overflow container with keyboard focusability and sticky headers.
+ * - Column selection: clicking any column header selects the column, driving the persistent sidebar inspector.
+ * - Restrained selection feedback: subtle accent indicator on header and gentle cell tint without flooding data.
  * - Preserves source row ordering using domain-backed CsvRow index keys.
  * - Handles duplicate and empty headers cleanly with unique position-based column keys and fallback labels.
  * - Handles uneven rows safely: missing fields render empty cells; extra fields are flagged with
  *   a subtle visual indicator while remaining preserved in the underlying CsvDocument.
  * - Supports Unicode characters (CJK, emojis, accented characters).
- * - Column inspection and type controls: inspect column properties, change alignment, and apply type overrides.
- * - Aligns columns based on presentation configuration (left, center, or right).
+ * - Aligns columns based on presentation configuration (left, center, or right with tabular figures for numbers).
  */
 export function DefaultTableRenderer({
   document,
   presentation,
-  onUpdatePresentation,
+  selectedColumnId,
+  onSelectColumn,
 }: TableRendererProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const visibleColumns = getVisibleColumns(presentation);
@@ -61,12 +52,12 @@ export function DefaultTableRenderer({
       tabIndex={0}
       role="region"
       aria-label="CSV data table"
-      className="relative w-full max-h-[calc(100vh-14rem)] min-h-[360px] overflow-auto rounded-xl border border-border bg-card shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      className="relative w-full max-h-[calc(100vh-12rem)] min-h-[360px] overflow-auto rounded-xl border border-border/80 bg-card shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     >
       <table className="w-full caption-bottom text-sm border-collapse min-w-full">
         <colgroup>
           {/* Row Number Column */}
-          <col style={{ width: "4rem", minWidth: "4rem", maxWidth: "4rem" }} />
+          <col style={{ width: "3.75rem", minWidth: "3.75rem", maxWidth: "3.75rem" }} />
           {/* Data Columns */}
           {visibleColumns.map((col) => (
             <col
@@ -84,12 +75,12 @@ export function DefaultTableRenderer({
           ))}
         </colgroup>
 
-        <thead className="sticky top-0 z-20 bg-muted/95 backdrop-blur-xs border-b border-border shadow-2xs">
+        <thead className="sticky top-0 z-20 bg-muted/95 backdrop-blur-xs border-b border-border/70 shadow-2xs">
           <tr>
             {/* Row Number Header */}
             <th
               scope="col"
-              className="sticky left-0 z-30 w-16 min-w-[4rem] max-w-[4rem] px-2.5 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-muted select-none border-r border-border/70"
+              className="sticky left-0 z-30 w-15 min-w-[3.75rem] max-w-[3.75rem] px-2.5 py-2.5 text-center text-[11px] font-mono font-medium uppercase tracking-wider text-muted-foreground bg-muted select-none border-r border-border/70"
             >
               #
             </th>
@@ -98,11 +89,21 @@ export function DefaultTableRenderer({
             {visibleColumns.map((col) => {
               const displayLabel = getColumnDisplayLabel(col);
               const isEmptyHeader = col.header.trim().length === 0;
+              const isSelected = selectedColumnId === col.id;
 
               return (
                 <th
                   key={col.id}
                   scope="col"
+                  aria-selected={isSelected}
+                  tabIndex={0}
+                  onClick={() => onSelectColumn?.(col.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onSelectColumn?.(col.id);
+                    }
+                  }}
                   style={
                     col.width !== undefined
                       ? {
@@ -113,7 +114,10 @@ export function DefaultTableRenderer({
                       : { minWidth: `${MIN_COLUMN_WIDTH}px` }
                   }
                   className={cn(
-                    "px-3 py-2 text-xs font-semibold tracking-tight text-foreground whitespace-nowrap border-r border-border/40 last:border-r-0",
+                    "px-3.5 py-2 text-xs font-semibold tracking-tight whitespace-nowrap border-r border-border/40 last:border-r-0 transition-colors select-none cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                    isSelected
+                      ? "bg-amber-50/90 dark:bg-amber-950/30 border-b-2 border-b-accent text-foreground shadow-2xs"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/80",
                     col.align === "right"
                       ? "text-right"
                       : col.align === "center"
@@ -132,6 +136,14 @@ export function DefaultTableRenderer({
                           : "justify-start",
                     )}
                   >
+                    {/* Selected accent indicator */}
+                    {isSelected && (
+                      <span
+                        className="size-1.5 rounded-full bg-accent shrink-0"
+                        aria-hidden="true"
+                      />
+                    )}
+
                     <span
                       className={cn(
                         "truncate",
@@ -141,29 +153,36 @@ export function DefaultTableRenderer({
                       {displayLabel}
                     </span>
 
-                    {onUpdatePresentation && (
-                      <ColumnInspector
-                        column={col}
-                        document={document}
-                        canHide={canHideColumn(presentation, col.id)}
-                        onUpdateType={(typeOverride) =>
-                          onUpdatePresentation(
-                            setColumnTypeOverride(presentation, col.id, typeOverride),
-                          )
-                        }
-                        onUpdateAlign={(align) =>
-                          onUpdatePresentation(setColumnAlignment(presentation, col.id, align))
-                        }
-                        onUpdateVisibility={(visible) =>
-                          onUpdatePresentation(setColumnVisibility(presentation, col.id, visible))
-                        }
-                        onUpdateWidth={(width) =>
-                          onUpdatePresentation(setColumnWidth(presentation, col.id, width))
-                        }
-                        onResetColumn={() =>
-                          onUpdatePresentation(resetColumnPresentation(presentation, col.id))
-                        }
-                      />
+                    {/* Compact inspect button to trigger selection and inspector */}
+                    {onSelectColumn && (
+                      <button
+                        type="button"
+                        aria-label={`Inspect column ${displayLabel}`}
+                        title={`Inspect column ${displayLabel}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectColumn(col.id);
+                        }}
+                        className={cn(
+                          "inline-flex items-center justify-center size-5 rounded text-muted-foreground/60 hover:text-foreground hover:bg-muted/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer transition-colors shrink-0 ml-0.5",
+                          isSelected && "text-foreground font-bold bg-accent/20",
+                        )}
+                      >
+                        <svg
+                          className="size-3"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          aria-hidden="true"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75"
+                          />
+                        </svg>
+                      </button>
                     )}
                   </div>
                 </th>
@@ -213,7 +232,7 @@ export function DefaultTableRenderer({
                     {/* Row Index Cell */}
                     <td
                       className={cn(
-                        "sticky left-0 z-10 w-16 min-w-[4rem] max-w-[4rem] px-2 py-1.5 text-center font-mono text-xs text-muted-foreground select-none bg-card border-r border-border/70",
+                        "sticky left-0 z-10 w-15 min-w-[3.75rem] max-w-[3.75rem] px-2 py-1.5 text-center font-mono text-[11px] text-muted-foreground select-none bg-card border-r border-border/70",
                         hasFieldMismatch && "bg-amber-500/5",
                       )}
                     >
@@ -243,6 +262,7 @@ export function DefaultTableRenderer({
                     {visibleColumns.map((col) => {
                       const rawValue = row.fields[col.sourceIndex];
                       const isEmpty = rawValue === undefined || rawValue === "";
+                      const isSelected = selectedColumnId === col.id;
 
                       return (
                         <td
@@ -254,10 +274,11 @@ export function DefaultTableRenderer({
                                   minWidth: `${col.width}px`,
                                   maxWidth: `${col.width}px`,
                                 }
-                              : { minWidth: `${MIN_COLUMN_WIDTH}px` }
+                              : { minWidth: "120px" }
                           }
                           className={cn(
-                            "px-3.5 py-1.5 text-xs text-foreground whitespace-nowrap truncate border-r border-border/30 last:border-r-0",
+                            "px-3.5 py-1.5 text-xs text-foreground whitespace-nowrap truncate border-r border-border/30 last:border-r-0 transition-colors",
+                            isSelected && "bg-amber-400/[0.04]",
                             col.align === "right"
                               ? "text-right font-mono"
                               : col.align === "center"
@@ -268,7 +289,7 @@ export function DefaultTableRenderer({
                         >
                           {isEmpty ? (
                             <span
-                              className="text-muted-foreground/30 font-mono text-[11px] select-none"
+                              className="text-muted-foreground/35 font-mono text-[11px] select-none"
                               aria-hidden="true"
                             >
                               —

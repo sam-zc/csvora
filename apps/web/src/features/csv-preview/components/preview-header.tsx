@@ -22,8 +22,16 @@ function getDelimiterLabel(delim: string): string {
 }
 
 /**
- * Top header bar for the CSV preview workspace.
- * Displays file metadata, dimensional statistics, diagnostic status, and workspace controls.
+ * Top toolbar for the Visual Editor Workspace.
+ *
+ * Provides a quiet, restrained editor header:
+ * - CSVora branding with selective yellow accent dot
+ * - Document filename and compact dimension metadata
+ * - Renderer indicator ("Renderer: Table")
+ * - ColumnManager trigger popover
+ * - Presentation reset action
+ * - Change file action
+ * - Compact diagnostics notification trigger
  */
 export function PreviewHeader({
   loadedDocument,
@@ -32,6 +40,8 @@ export function PreviewHeader({
   onReset,
   onResetPresentation,
   hasPresentationChanges = false,
+  isSidebarOpen,
+  onToggleSidebar,
 }: PreviewHeaderProps) {
   const { file, document, diagnostics } = loadedDocument;
   const [showDiagnostics, setShowDiagnostics] = useState(false);
@@ -41,68 +51,70 @@ export function PreviewHeader({
   const hasIssues = diagnostics.length > 0;
 
   return (
-    <header className="space-y-3">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-card shadow-2xs">
+    <header className="relative shrink-0 z-30">
+      <div className="h-13 px-4 border-b border-border/80 bg-surface/95 backdrop-blur-xs flex items-center justify-between gap-4">
         {/* Left: Branding & File Identity */}
         <div className="flex items-center gap-3 min-w-0">
-          <div className="size-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
-            <svg
-              className="size-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
-              />
-            </svg>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="size-2 rounded-full bg-accent shrink-0" aria-hidden="true" />
+            <span className="font-bold text-sm tracking-tight text-foreground font-sans">
+              CSVora
+            </span>
           </div>
 
-          <div className="min-w-0">
+          <div className="h-4 w-px bg-border/80 hidden sm:block shrink-0" aria-hidden="true" />
+
+          <div className="flex items-center gap-2 min-w-0">
             <h1
-              className="text-base font-semibold text-foreground tracking-tight truncate"
+              className="text-xs font-semibold text-foreground tracking-tight truncate max-w-[150px] sm:max-w-[220px] md:max-w-[300px]"
               title={file.name}
             >
               {file.name}
             </h1>
-            <p className="text-xs text-muted-foreground flex items-center gap-1.5 font-mono">
-              <span>{formatFileSize(file.size)}</span>
+
+            <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-mono text-muted-foreground bg-muted/50 px-2 py-0.5 rounded border border-border/50 shrink-0">
+              <span className="text-foreground font-medium">
+                {document.rowCount.toLocaleString()}
+              </span>
+              <span className="text-muted-foreground font-sans">rows</span>
               <span>•</span>
-              <span className="text-foreground/70 font-sans">Browser preview</span>
-            </p>
+              <span className="text-foreground font-medium">
+                {document.columnCount.toLocaleString()}
+              </span>
+              <span className="text-muted-foreground font-sans">cols</span>
+              <span>•</span>
+              <span className="text-muted-foreground font-sans">
+                {getDelimiterLabel(document.delimiter)}
+              </span>
+              <span>•</span>
+              <span>{formatFileSize(file.size)}</span>
+            </div>
           </div>
         </div>
 
-        {/* Center/Right: Metrics, Diagnostics, and Action Controls */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Dimensional Stats */}
-          <div className="flex items-center gap-1.5 text-xs font-mono bg-muted/60 px-2.5 py-1.5 rounded-lg border border-border/50">
-            <span className="text-foreground font-semibold">
-              {document.rowCount.toLocaleString()}
+        {/* Right: Actions & Tools */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Renderer concept badge */}
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border/60 bg-muted/40 text-xs select-none"
+            title="Active presentation renderer"
+          >
+            <span className="text-muted-foreground text-[10px] uppercase font-semibold tracking-wider font-mono">
+              Renderer
             </span>
-            <span className="text-muted-foreground font-sans">rows</span>
-            <span className="text-muted-foreground">•</span>
-            <span className="text-foreground font-semibold">
-              {document.columnCount.toLocaleString()}
-            </span>
-            <span className="text-muted-foreground font-sans">cols</span>
-            <span className="text-muted-foreground">•</span>
-            <span className="text-muted-foreground font-sans">
-              {getDelimiterLabel(document.delimiter)}
+            <span className="font-semibold text-foreground font-mono text-[11px] flex items-center gap-1">
+              <span className="size-1.5 rounded-full bg-accent shrink-0" />
+              Table
             </span>
           </div>
 
-          {/* Diagnostic issues trigger */}
+          {/* Diagnostics Trigger if issues exist */}
           {hasIssues && (
             <button
               type="button"
               onClick={() => setShowDiagnostics((prev) => !prev)}
               aria-expanded={showDiagnostics}
-              className="inline-flex items-center gap-1.5 text-xs font-medium cursor-pointer transition-opacity hover:opacity-80"
+              className="inline-flex items-center text-xs font-medium cursor-pointer transition-opacity hover:opacity-80"
             >
               {errorCount > 0 ? (
                 <Badge variant="destructive">
@@ -130,7 +142,7 @@ export function PreviewHeader({
               variant="outline"
               size="sm"
               onClick={onResetPresentation}
-              className="cursor-pointer text-xs"
+              className="cursor-pointer text-xs h-8"
               aria-label="Reset presentation to default inferred settings"
             >
               Reset presentation
@@ -142,17 +154,43 @@ export function PreviewHeader({
             variant="outline"
             size="sm"
             onClick={onReset}
-            className="cursor-pointer"
+            className="cursor-pointer text-xs h-8"
             aria-label="Change CSV file and return to upload"
           >
             Change file
           </Button>
+
+          {/* Mobile/Tablet Inspector Toggle */}
+          {onToggleSidebar && (
+            <Button
+              variant={isSidebarOpen ? "secondary" : "outline"}
+              size="sm"
+              onClick={onToggleSidebar}
+              className="lg:hidden cursor-pointer text-xs h-8 px-2.5"
+              aria-label="Toggle inspector sidebar"
+            >
+              Inspector
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Expanded Diagnostics Drawer/Card */}
+      {/* Expandable Diagnostics Drawer */}
       {showDiagnostics && (
-        <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+        <div className="absolute top-full left-0 right-0 p-4 bg-background/95 backdrop-blur-md border-b border-border shadow-lg z-40 max-h-96 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/60">
+            <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono">
+              Diagnostics Report
+            </h2>
+            <button
+              type="button"
+              onClick={() => setShowDiagnostics(false)}
+              className="text-xs text-muted-foreground hover:text-foreground p-1 rounded"
+              aria-label="Close diagnostics"
+            >
+              ✕
+            </button>
+          </div>
           <CsvDiagnostics diagnostics={diagnostics} />
         </div>
       )}

@@ -308,4 +308,114 @@ describe("CSV Preview Workspace & Presentation Integration", () => {
     expect(col1?.visible).toBe(true);
     expect(col1?.width).toBeUndefined();
   });
+
+  describe("Visual Editor Workspace Selection & Inspector Behaviors", () => {
+    it("handles selected column state changes and resolves correct column presentation", () => {
+      const presentation = createDefaultPresentation(mockLoadedDocument.document);
+      let selectedColumnId: string | null = null;
+
+      // Initially no column selected
+      let selectedCol = presentation.columns.find((c) => c.id === selectedColumnId) ?? null;
+      expect(selectedCol).toBeNull();
+
+      // Select column col_1 (amount)
+      selectedColumnId = "col_1";
+      selectedCol = presentation.columns.find((c) => c.id === selectedColumnId) ?? null;
+      expect(selectedCol).not.toBeNull();
+      expect(selectedCol?.id).toBe("col_1");
+      expect(selectedCol?.header).toBe("amount");
+
+      // Switch selection to col_2 (description)
+      selectedColumnId = "col_2";
+      selectedCol = presentation.columns.find((c) => c.id === selectedColumnId) ?? null;
+      expect(selectedCol?.id).toBe("col_2");
+      expect(selectedCol?.header).toBe("description");
+
+      // Clear selection
+      selectedColumnId = null;
+      selectedCol = presentation.columns.find((c) => c.id === selectedColumnId) ?? null;
+      expect(selectedCol).toBeNull();
+    });
+
+    it("updates only the target column when inspector settings change", () => {
+      const presentation = createDefaultPresentation(mockLoadedDocument.document);
+      const selectedColumnId = "col_1"; // amount
+
+      // Apply type override, width, and alignment to selected column
+      const updated = setColumnWidth(
+        setColumnAlignment(
+          setColumnTypeOverride(presentation, selectedColumnId, "string"),
+          selectedColumnId,
+          "center",
+        ),
+        selectedColumnId,
+        180,
+      );
+
+      const targetCol = updated.columns.find((c) => c.id === selectedColumnId);
+      expect(targetCol?.typeOverride).toBe("string");
+      expect(targetCol?.align).toBe("center");
+      expect(targetCol?.width).toBe(180);
+
+      // Other columns remain unaffected
+      const col0 = updated.columns.find((c) => c.id === "col_0");
+      expect(col0?.typeOverride).toBeUndefined();
+      expect(col0?.align).toBe("left");
+      expect(col0?.width).toBeUndefined();
+
+      const col2 = updated.columns.find((c) => c.id === "col_2");
+      expect(col2?.typeOverride).toBeUndefined();
+      expect(col2?.align).toBe("left");
+      expect(col2?.width).toBeUndefined();
+    });
+
+    it("maintains sensible behavior when the selected column is hidden", () => {
+      const presentation = createDefaultPresentation(mockLoadedDocument.document);
+      const selectedColumnId = "col_2"; // description
+
+      // Selected column is hidden
+      const withHidden = setColumnVisibility(presentation, selectedColumnId, false);
+
+      // Presentation retains the column's configuration even when hidden
+      const hiddenSelectedCol = withHidden.columns.find((c) => c.id === selectedColumnId);
+      expect(hiddenSelectedCol).toBeDefined();
+      expect(hiddenSelectedCol?.visible).toBe(false);
+
+      // Visible columns list excludes it
+      const visibleCols = getVisibleColumns(withHidden);
+      expect(visibleCols.some((c) => c.id === selectedColumnId)).toBe(false);
+
+      // Unhiding the selected column restores visibility
+      const unhidden = setColumnVisibility(withHidden, selectedColumnId, true);
+      const restoredCol = unhidden.columns.find((c) => c.id === selectedColumnId);
+      expect(restoredCol?.visible).toBe(true);
+      expect(getVisibleColumns(unhidden).some((c) => c.id === selectedColumnId)).toBe(true);
+    });
+
+    it("ensures presentation reset updates inspector target back to defaults without stale values", () => {
+      const presentation = createDefaultPresentation(mockLoadedDocument.document);
+      const selectedColumnId = "col_1";
+
+      // Configure overrides on selected column
+      const modified = setColumnWidth(
+        setColumnAlignment(
+          setColumnTypeOverride(presentation, selectedColumnId, "string"),
+          selectedColumnId,
+          "center",
+        ),
+        selectedColumnId,
+        250,
+      );
+      expect(modified.columns.find((c) => c.id === selectedColumnId)?.width).toBe(250);
+
+      // Reset presentation
+      const reset = createDefaultPresentation(mockLoadedDocument.document);
+      const resetSelectedCol = reset.columns.find((c) => c.id === selectedColumnId);
+
+      expect(resetSelectedCol?.typeOverride).toBeUndefined();
+      expect(resetSelectedCol?.align).toBe("right"); // numeric default
+      expect(resetSelectedCol?.width).toBeUndefined();
+      expect(resetSelectedCol?.visible).toBe(true);
+    });
+  });
 });

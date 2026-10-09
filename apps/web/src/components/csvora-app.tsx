@@ -26,7 +26,7 @@ export function CsvoraApp() {
 
   if (view === "preview" && activeDocument !== null) {
     return (
-      <main className="flex min-h-screen flex-col p-4 sm:p-6 lg:p-8 bg-background text-foreground animate-in fade-in duration-150">
+      <main className="flex h-screen w-full flex-col overflow-hidden bg-background text-foreground animate-in fade-in duration-150">
         <CsvPreviewWorkspace loadedDocument={activeDocument} onReset={handleReset} />
       </main>
     );

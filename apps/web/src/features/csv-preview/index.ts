@@ -3,5 +3,6 @@ export * from "./components/default-table-renderer";
 export * from "./components/renderer-host";
 export * from "./components/preview-header";
 export * from "./components/column-inspector";
+export * from "./components/column-inspector-sidebar";
 export * from "./components/column-manager";
 export * from "./components/csv-preview-workspace";

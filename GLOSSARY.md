@@ -100,6 +100,18 @@ A presentation operation that restores source column order, reveals all hidden c
 
 Presentation configuration properties that govern layout or behaviors specific to a particular visual renderer (such as column width in tabular views) rather than generic semantic column data.
 
+### Editor Workspace
+
+The high-level visual design studio environment comprising the quiet top bar, persistent column inspector sidebar, and the design canvas hosting the active visual renderer.
+
+### Selected Column
+
+The transient, client-side UI selection state (`selectedColumnId`) identifying the column actively being inspected or styled in the workspace, strictly decoupled from serializable presentation models.
+
+### Design Canvas
+
+The warm off-white, textured workspace surface (`--canvas-bg`, `--canvas-dot`) that provides generous spatial padding and visual grounding for active data renderers.
+
 ---
 
 ## Package Boundary Rules

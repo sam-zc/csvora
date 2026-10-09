@@ -7,7 +7,13 @@ import { DefaultTableRenderer } from "./default-table-renderer";
  * It maps the current PresentationConfig to the appropriate renderer implementation.
  * Currently dispatches to DefaultTableRenderer for the "table" rendererId.
  */
-export function RendererHost({ document, presentation, onUpdatePresentation }: RendererHostProps) {
+export function RendererHost({
+  document,
+  presentation,
+  onUpdatePresentation,
+  selectedColumnId,
+  onSelectColumn,
+}: RendererHostProps) {
   switch (presentation.rendererId) {
     case "table":
       return (
@@ -15,6 +21,8 @@ export function RendererHost({ document, presentation, onUpdatePresentation }: R
           document={document}
           presentation={presentation}
           onUpdatePresentation={onUpdatePresentation}
+          selectedColumnId={selectedColumnId}
+          onSelectColumn={onSelectColumn}
         />
       );
     default: {
