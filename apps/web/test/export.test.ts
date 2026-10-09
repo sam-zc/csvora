@@ -32,6 +32,7 @@ describe("Web Export Integration & Download Layer", () => {
         visible: true,
         align: "left",
         inferredType: "string",
+        conditionalRules: [],
       },
       {
         id: "col_1",
@@ -44,6 +45,7 @@ describe("Web Export Integration & Download Layer", () => {
           kind: "currency",
           options: { currency: "INR", locale: "en-IN" },
         },
+        conditionalRules: [],
       },
       {
         id: "col_2",
@@ -52,6 +54,7 @@ describe("Web Export Integration & Download Layer", () => {
         visible: false, // hidden column
         align: "left",
         inferredType: "string",
+        conditionalRules: [],
       },
     ],
     rendererConfigs: {},

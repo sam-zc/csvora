@@ -167,6 +167,49 @@ export type ColumnFormatInput = z.input<typeof columnFormatSchema>;
 
 /**
  * Presentation-level configuration for a single column.
+/**
+ * Bounded semantic intent categorization for renderer visual presentation.
+ * Completely decoupled from CSS colors, classes, and DOM elements.
+ */
+export const semanticIntentSchema = z.enum(["success", "warning", "danger", "info", "muted"]);
+export type SemanticIntent = z.infer<typeof semanticIntentSchema>;
+
+/**
+ * Supported comparison operators for conditional formatting rules.
+ */
+export const conditionalOperatorSchema = z.enum([
+  "gt",
+  "gte",
+  "lt",
+  "lte",
+  "eq",
+  "neq",
+  "contains",
+  "startsWith",
+  "endsWith",
+  "empty",
+  "notEmpty",
+  "before",
+  "after",
+]);
+export type ConditionalOperator = z.infer<typeof conditionalOperatorSchema>;
+
+/**
+ * Value-based conditional rule defining semantic visual intent for a column cell.
+ */
+export const conditionalRuleSchema = z.object({
+  id: z.string().min(1),
+  operator: conditionalOperatorSchema,
+  value: z.union([z.string(), z.number()]).optional(),
+  intent: semanticIntentSchema,
+  enabled: z.boolean().default(true),
+});
+
+export type ConditionalRule = z.infer<typeof conditionalRuleSchema>;
+export type ConditionalRuleInput = z.input<typeof conditionalRuleSchema>;
+
+/**
+ * Presentation-level configuration for a single column.
  * Separates raw CSV data structure from visual presentation parameters.
  */
 export const columnPresentationSchema = z.object({
@@ -217,6 +260,12 @@ export const columnPresentationSchema = z.object({
    * Optional semantic format configuration for values in this column.
    */
   format: columnFormatSchema.optional(),
+
+  /**
+   * Value-based conditional rules evaluated in array order against raw cell values.
+   * Resolves to semantic visual intents (first matching rule wins).
+   */
+  conditionalRules: z.array(conditionalRuleSchema).default([]),
 });
 
 export type ColumnPresentation = z.infer<typeof columnPresentationSchema>;

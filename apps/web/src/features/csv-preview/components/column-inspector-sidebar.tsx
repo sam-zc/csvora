@@ -6,8 +6,13 @@ import {
   type ColumnFormat,
   type ColumnPresentation,
   type ColumnType,
+  type ConditionalOperator,
+  type ConditionalRule,
+  type ConditionalRuleInput,
   type DeparturesConfig,
   type PresentationConfig,
+  type SemanticIntent,
+  MAX_RULES_PER_COLUMN,
   MIN_COLUMN_WIDTH,
   MAX_COLUMN_WIDTH,
   canHideColumn,
@@ -15,7 +20,9 @@ import {
   getColumnProfile,
   getDefaultAlignmentForType,
   getEffectiveColumnType,
+  getOperatorsForType,
   getVisibleColumns,
+  validateConditionalRule,
 } from "@csvora/table-engine";
 import {
   Badge,
@@ -42,6 +49,17 @@ export interface ColumnInspectorSidebarProps {
   readonly onUpdateFormat?:
     | ((columnId: string, format: ColumnFormat | undefined) => void)
     | undefined;
+  readonly onAddRule?:
+    | ((columnId: string, rule: Omit<ConditionalRuleInput, "id"> & { id?: string }) => void)
+    | undefined;
+  readonly onUpdateRule?:
+    | ((columnId: string, ruleId: string, updates: Partial<Omit<ConditionalRule, "id">>) => void)
+    | undefined;
+  readonly onRemoveRule?: ((columnId: string, ruleId: string) => void) | undefined;
+  readonly onMoveRule?:
+    | ((columnId: string, ruleId: string, direction: "up" | "down") => void)
+    | undefined;
+  readonly onClearRules?: ((columnId: string) => void) | undefined;
   readonly onResetColumn: (columnId: string) => void;
   readonly onUpdateDeparturesMapping?: ((mapping: DeparturesConfig) => void) | undefined;
   readonly onResetDeparturesMapping?: (() => void) | undefined;
@@ -180,12 +198,376 @@ function DeparturesMappingSection({
   );
 }
 
+const INTENT_OPTIONS: readonly {
+  readonly value: SemanticIntent;
+  readonly label: string;
+  readonly dotClass: string;
+}[] = [
+  { value: "success", label: "Success", dotClass: "bg-emerald-500" },
+  { value: "warning", label: "Warning", dotClass: "bg-amber-500" },
+  { value: "danger", label: "Danger", dotClass: "bg-rose-500" },
+  { value: "info", label: "Info", dotClass: "bg-sky-500" },
+  { value: "muted", label: "Muted", dotClass: "bg-zinc-400" },
+];
+
+function ConditionalRulesSection({
+  column,
+  effectiveType,
+  onAddRule,
+  onUpdateRule,
+  onRemoveRule,
+  onMoveRule,
+  onClearRules,
+}: {
+  readonly column: ColumnPresentation;
+  readonly effectiveType: ColumnType;
+  readonly onAddRule?:
+    | ((columnId: string, rule: Omit<ConditionalRuleInput, "id"> & { id?: string }) => void)
+    | undefined;
+  readonly onUpdateRule?:
+    | ((columnId: string, ruleId: string, updates: Partial<Omit<ConditionalRule, "id">>) => void)
+    | undefined;
+  readonly onRemoveRule?: ((columnId: string, ruleId: string) => void) | undefined;
+  readonly onMoveRule?:
+    | ((columnId: string, ruleId: string, direction: "up" | "down") => void)
+    | undefined;
+  readonly onClearRules?: ((columnId: string) => void) | undefined;
+}) {
+  const rules = column.conditionalRules ?? [];
+  const operators = getOperatorsForType(effectiveType);
+  const isAtLimit = rules.length >= MAX_RULES_PER_COLUMN;
+
+  const handleAddDefaultRule = () => {
+    if (isAtLimit || !onAddRule) return;
+
+    let defaultOp: ConditionalOperator = "gt";
+    let defaultValue: string | number | undefined = 0;
+    let defaultIntent: SemanticIntent = "success";
+
+    switch (effectiveType) {
+      case "number":
+        defaultOp = "gt";
+        defaultValue = 0;
+        defaultIntent = "success";
+        break;
+      case "string":
+        defaultOp = "contains";
+        defaultValue = "";
+        defaultIntent = "warning";
+        break;
+      case "boolean":
+        defaultOp = "eq";
+        defaultValue = "true";
+        defaultIntent = "success";
+        break;
+      case "date":
+        defaultOp = "after";
+        defaultValue = "";
+        defaultIntent = "info";
+        break;
+    }
+
+    onAddRule(column.id, {
+      operator: defaultOp,
+      value: defaultValue,
+      intent: defaultIntent,
+      enabled: true,
+    });
+  };
+
+  return (
+    <div className="space-y-2.5">
+      {/* Section Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-medium text-foreground">Conditional Rules</span>
+          <Badge variant="outline" className="text-[10px] px-1 py-0 font-mono">
+            {rules.length}/{MAX_RULES_PER_COLUMN}
+          </Badge>
+        </div>
+
+        <div className="flex items-center gap-1">
+          {rules.length > 0 && onClearRules && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onClearRules(column.id)}
+              className="h-6 text-[10px] px-1.5 text-muted-foreground hover:text-foreground cursor-pointer"
+              aria-label="Clear all rules"
+            >
+              Clear
+            </Button>
+          )}
+
+          {onAddRule && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isAtLimit}
+              onClick={handleAddDefaultRule}
+              className="h-6 text-[11px] px-2 cursor-pointer disabled:cursor-not-allowed"
+              aria-label="Add conditional rule"
+            >
+              + Add rule
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {rules.length === 0 ? (
+        <div className="p-3 rounded-lg border border-dashed border-border/70 text-center space-y-1.5 bg-muted/10">
+          <p className="text-[11px] text-muted-foreground">
+            No rules defined. Add a value condition to highlight cells with semantic intent.
+          </p>
+          {onAddRule && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleAddDefaultRule}
+              className="h-6 text-[11px] px-2 cursor-pointer"
+            >
+              Add first rule
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-[10px] text-muted-foreground/80 font-mono">
+            Evaluated in order. First matching rule wins.
+          </p>
+
+          {rules.map((rule, idx) => {
+            const opDef = operators.find((o) => o.value === rule.operator);
+            const isCurrentOpAllowed = !!opDef;
+            const requiresValue = opDef?.requiresValue ?? true;
+            const diagnostic = validateConditionalRule(rule, effectiveType);
+
+            return (
+              <div
+                key={rule.id}
+                className={cn(
+                  "p-2.5 rounded-lg border text-xs space-y-2 transition-colors",
+                  rule.enabled
+                    ? "bg-card border-border/80 shadow-2xs"
+                    : "bg-muted/20 border-border/40 opacity-70",
+                )}
+              >
+                {/* Rule Card Header: Status, Identity & Reorder/Remove Controls */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={rule.enabled}
+                      aria-label={`Toggle rule ${idx + 1}`}
+                      onClick={() => onUpdateRule?.(column.id, rule.id, { enabled: !rule.enabled })}
+                      className={cn(
+                        "size-3.5 rounded border flex items-center justify-center text-[9px] cursor-pointer transition-colors leading-none font-bold",
+                        rule.enabled
+                          ? "bg-primary border-primary text-primary-foreground"
+                          : "bg-background border-border text-transparent",
+                      )}
+                    >
+                      ✓
+                    </button>
+                    <span className="font-mono text-[11px] font-semibold text-foreground">
+                      Rule {idx + 1}
+                    </span>
+                    {!rule.enabled && (
+                      <span className="text-[10px] text-muted-foreground italic font-sans">
+                        (disabled)
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      type="button"
+                      disabled={idx === 0}
+                      onClick={() => onMoveRule?.(column.id, rule.id, "up")}
+                      className="size-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed text-xs transition-colors"
+                      aria-label={`Move rule ${idx + 1} up`}
+                      title="Move up (higher priority)"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      disabled={idx === rules.length - 1}
+                      onClick={() => onMoveRule?.(column.id, rule.id, "down")}
+                      className="size-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed text-xs transition-colors"
+                      aria-label={`Move rule ${idx + 1} down`}
+                      title="Move down (lower priority)"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveRule?.(column.id, rule.id)}
+                      className="size-5 rounded flex items-center justify-center text-rose-600 hover:text-rose-700 hover:bg-rose-500/10 cursor-pointer text-xs ml-0.5 transition-colors"
+                      aria-label={`Remove rule ${idx + 1}`}
+                      title="Remove rule"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* When Condition: Operator + Optional Value */}
+                <div className="space-y-1.5 pt-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground font-medium w-9 shrink-0">
+                      When
+                    </span>
+                    <Select
+                      value={rule.operator}
+                      onValueChange={(val) => {
+                        const nextOp = val as ConditionalOperator;
+                        const nextDef = operators.find((o) => o.value === nextOp);
+                        const nextRequiresValue = nextDef?.requiresValue ?? true;
+                        onUpdateRule?.(column.id, rule.id, {
+                          operator: nextOp,
+                          value: nextRequiresValue ? (rule.value ?? 0) : undefined,
+                        });
+                      }}
+                    >
+                      <SelectTrigger
+                        id={`rule-op-${rule.id}`}
+                        aria-label={`Operator for rule ${idx + 1}`}
+                        className="h-7 text-xs bg-background flex-1 cursor-pointer"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {operators.map((op) => (
+                          <SelectItem key={op.value} value={op.value}>
+                            {op.label}
+                          </SelectItem>
+                        ))}
+                        {!isCurrentOpAllowed && (
+                          <SelectItem value={rule.operator}>
+                            {rule.operator} (incompatible)
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {requiresValue && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-transparent w-9 shrink-0 select-none">
+                        Val
+                      </span>
+                      {effectiveType === "boolean" ? (
+                        <Select
+                          value={String(rule.value ?? "true")}
+                          onValueChange={(val) =>
+                            onUpdateRule?.(column.id, rule.id, { value: val })
+                          }
+                        >
+                          <SelectTrigger
+                            id={`rule-val-${rule.id}`}
+                            aria-label={`Value for rule ${idx + 1}`}
+                            className="h-7 text-xs bg-background flex-1 font-mono cursor-pointer"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="true">true</SelectItem>
+                            <SelectItem value="false">false</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          id={`rule-val-${rule.id}`}
+                          type={effectiveType === "number" ? "number" : "text"}
+                          placeholder={
+                            effectiveType === "number"
+                              ? "0"
+                              : effectiveType === "date"
+                                ? "YYYY-MM-DD"
+                                : "Text value"
+                          }
+                          value={rule.value ?? ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (effectiveType === "number") {
+                              const trimmed = val.trim();
+                              onUpdateRule?.(column.id, rule.id, {
+                                value: trimmed === "" ? undefined : Number(trimmed),
+                              });
+                            } else {
+                              onUpdateRule?.(column.id, rule.id, { value: val });
+                            }
+                          }}
+                          aria-label={`Value for rule ${idx + 1}`}
+                          className="h-7 text-xs bg-background font-mono flex-1"
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Then Intent Selector */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground font-medium w-9 shrink-0">
+                      Then
+                    </span>
+                    <Select
+                      value={rule.intent}
+                      onValueChange={(val) =>
+                        onUpdateRule?.(column.id, rule.id, {
+                          intent: val as SemanticIntent,
+                        })
+                      }
+                    >
+                      <SelectTrigger
+                        id={`rule-intent-${rule.id}`}
+                        aria-label={`Intent for rule ${idx + 1}`}
+                        className="h-7 text-xs bg-background flex-1 cursor-pointer"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INTENT_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={cn("size-2 rounded-full shrink-0", opt.dotClass)}
+                                aria-hidden="true"
+                              />
+                              <span>{opt.label}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Diagnostics / Validation Notice */}
+                {!diagnostic.isValid && diagnostic.warning && (
+                  <div className="p-1.5 rounded bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-700 dark:text-amber-300">
+                    ⚠ {diagnostic.warning}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * Persistent sidebar inspector for the Visual Editor Workspace.
  *
  * Displays:
  * 1. Renderer-level settings (such as Departures Board field mappings) when active.
- * 2. Column-level settings (type override, alignment, width, visibility) for the selected column.
+ * 2. Column-level settings (type override, alignment, width, visibility, conditional rules) for the selected column.
  * 3. Dataset overview and helpful guidance when no column is selected.
  */
 export function ColumnInspectorSidebar({
@@ -198,6 +580,11 @@ export function ColumnInspectorSidebar({
   onUpdateVisibility,
   onUpdateWidth,
   onUpdateFormat,
+  onAddRule,
+  onUpdateRule,
+  onRemoveRule,
+  onMoveRule,
+  onClearRules,
   onResetColumn,
   onUpdateDeparturesMapping,
   onResetDeparturesMapping,
@@ -313,12 +700,14 @@ export function ColumnInspectorSidebar({
   const isWidthModified = column.width !== undefined;
   const isVisibilityModified = !column.visible;
   const isFormatModified = column.format !== undefined;
+  const hasConditionalRules = (column.conditionalRules?.length ?? 0) > 0;
   const isModified =
     isTypeOverridden ||
     isAlignModified ||
     isWidthModified ||
     isVisibilityModified ||
-    isFormatModified;
+    isFormatModified ||
+    hasConditionalRules;
   const canHide = canHideColumn(presentation, column.id);
 
   const profile = getColumnProfile(document, column.sourceIndex);
@@ -697,6 +1086,19 @@ export function ColumnInspectorSidebar({
             {column.visible ? "Hide column" : "Show column"}
           </Button>
         </div>
+
+        <Separator />
+
+        {/* Conditional Rules Section */}
+        <ConditionalRulesSection
+          column={column}
+          effectiveType={effectiveType}
+          onAddRule={onAddRule}
+          onUpdateRule={onUpdateRule}
+          onRemoveRule={onRemoveRule}
+          onMoveRule={onMoveRule}
+          onClearRules={onClearRules}
+        />
 
         <Separator />
 

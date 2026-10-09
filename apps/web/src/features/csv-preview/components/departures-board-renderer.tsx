@@ -3,11 +3,33 @@
 import type { CsvDocument } from "@csvora/csv-core";
 import {
   type PresentationConfig,
+  type SemanticIntent,
   isDeparturesConfigured,
   resetDeparturesMapping,
+  resolveConditionalIntent,
   resolveDepartureStatus,
 } from "@csvora/table-engine";
 import { Button, cn } from "@csvora/ui";
+
+/**
+ * Maps semantic intents to split-flap authentic text accent colors.
+ */
+function getFlapIntentColorClass(intent: SemanticIntent | undefined, defaultClass: string): string {
+  switch (intent) {
+    case "success":
+      return "text-emerald-400";
+    case "warning":
+      return "text-amber-400";
+    case "danger":
+      return "text-rose-400";
+    case "info":
+      return "text-sky-400";
+    case "muted":
+      return "text-zinc-500";
+    default:
+      return defaultClass;
+  }
+}
 
 export interface DeparturesBoardRendererProps {
   readonly document: CsvDocument;
@@ -350,18 +372,37 @@ export function DeparturesBoardRenderer({
           {/* Departure Rows */}
           <div className="space-y-2" role="feed" aria-label="Flight departures list">
             {visibleRows.map((row) => {
-              const timeVal = timeCol ? (row.fields[timeCol.sourceIndex] ?? "") : "";
-              const flightVal = (
-                flightCol ? (row.fields[flightCol.sourceIndex] ?? "") : ""
-              ).toUpperCase();
-              const destVal = (
-                destCol ? (row.fields[destCol.sourceIndex] ?? "") : ""
-              ).toUpperCase();
-              const gateVal = (
-                gateCol ? (row.fields[gateCol.sourceIndex] ?? "") : ""
-              ).toUpperCase();
+              const timeRaw = timeCol ? row.fields[timeCol.sourceIndex] : undefined;
+              const timeVal = timeRaw ?? "";
+              const timeIntent = timeCol
+                ? resolveConditionalIntent({ rawValue: timeRaw, column: timeCol })
+                : undefined;
+              const timeColorClass = getFlapIntentColorClass(timeIntent, "text-amber-400");
+
+              const flightRaw = flightCol ? row.fields[flightCol.sourceIndex] : undefined;
+              const flightVal = (flightRaw ?? "").toUpperCase();
+              const flightIntent = flightCol
+                ? resolveConditionalIntent({ rawValue: flightRaw, column: flightCol })
+                : undefined;
+              const flightColorClass = getFlapIntentColorClass(flightIntent, "text-zinc-100");
+
+              const destRaw = destCol ? row.fields[destCol.sourceIndex] : undefined;
+              const destVal = (destRaw ?? "").toUpperCase();
+              const destIntent = destCol
+                ? resolveConditionalIntent({ rawValue: destRaw, column: destCol })
+                : undefined;
+              const destColorClass = getFlapIntentColorClass(destIntent, "text-zinc-100");
+
+              const gateRaw = gateCol ? row.fields[gateCol.sourceIndex] : undefined;
+              const gateVal = (gateRaw ?? "").toUpperCase();
+              const gateIntent = gateCol
+                ? resolveConditionalIntent({ rawValue: gateRaw, column: gateCol })
+                : undefined;
+              const gateColorClass = getFlapIntentColorClass(gateIntent, "text-zinc-100");
+
               const rawStatus = statusCol ? row.fields[statusCol.sourceIndex] : undefined;
 
+              // Precedence rule: specialized airport departure status resolver takes priority over generic conditional rules
               const statusResult = resolveDepartureStatus(rawStatus);
               const isDimmed = statusResult.isDimmedRow;
 
@@ -396,7 +437,7 @@ export function DeparturesBoardRenderer({
                     <FlapField
                       text={timeVal}
                       slotCount={SLOT_COUNTS.time}
-                      colorClass="text-amber-400"
+                      colorClass={timeColorClass}
                       isDimmed={isDimmed}
                     />
                   </div>
@@ -406,7 +447,7 @@ export function DeparturesBoardRenderer({
                     <FlapField
                       text={flightVal}
                       slotCount={SLOT_COUNTS.flight}
-                      colorClass="text-zinc-100"
+                      colorClass={flightColorClass}
                       isDimmed={isDimmed}
                     />
                   </div>
@@ -416,7 +457,7 @@ export function DeparturesBoardRenderer({
                     <FlapField
                       text={destVal}
                       slotCount={SLOT_COUNTS.destination}
-                      colorClass="text-zinc-100"
+                      colorClass={destColorClass}
                       isDimmed={isDimmed}
                     />
                   </div>
@@ -426,7 +467,7 @@ export function DeparturesBoardRenderer({
                     <FlapField
                       text={gateVal}
                       slotCount={SLOT_COUNTS.gate}
-                      colorClass="text-zinc-100"
+                      colorClass={gateColorClass}
                       isDimmed={isDimmed}
                     />
                   </div>

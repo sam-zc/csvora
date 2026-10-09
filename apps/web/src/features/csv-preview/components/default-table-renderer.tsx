@@ -8,8 +8,49 @@ import {
   formatPresentationValue,
   getColumnDisplayLabel,
   getVisibleColumns,
+  resolveConditionalIntent,
+  type SemanticIntent,
 } from "@csvora/table-engine";
 import type { TableRendererProps } from "../types";
+
+/**
+ * Maps semantic visual intent to restrained, accessible styles for tabular display.
+ * Avoids aggressive saturation or dashboard colors, maintaining CSVora's quiet editorial aesthetic.
+ */
+function getTableIntentClasses(intent: SemanticIntent | undefined): {
+  readonly cellClass?: string;
+  readonly textClass?: string;
+} {
+  switch (intent) {
+    case "success":
+      return {
+        cellClass: "bg-emerald-500/[0.08] dark:bg-emerald-500/[0.12]",
+        textClass: "text-emerald-950 dark:text-emerald-300 font-medium",
+      };
+    case "warning":
+      return {
+        cellClass: "bg-amber-500/[0.08] dark:bg-amber-500/[0.12]",
+        textClass: "text-amber-950 dark:text-amber-300 font-medium",
+      };
+    case "danger":
+      return {
+        cellClass: "bg-rose-500/[0.08] dark:bg-rose-500/[0.12]",
+        textClass: "text-rose-950 dark:text-rose-300 font-medium",
+      };
+    case "info":
+      return {
+        cellClass: "bg-sky-500/[0.08] dark:bg-sky-500/[0.12]",
+        textClass: "text-sky-950 dark:text-sky-300 font-medium",
+      };
+    case "muted":
+      return {
+        cellClass: "bg-muted/30",
+        textClass: "text-muted-foreground/60 italic",
+      };
+    default:
+      return {};
+  }
+}
 
 /**
  * Default Table Renderer for CSVora Visual Editor Workspace.
@@ -267,12 +308,15 @@ export function DefaultTableRenderer({
                     {visibleColumns.map((col) => {
                       const rawValue = row.fields[col.sourceIndex];
                       const formattedValue = formatPresentationValue(rawValue, col);
+                      const intent = resolveConditionalIntent({ rawValue, column: col });
+                      const intentStyles = getTableIntentClasses(intent);
                       const isEmpty = rawValue === undefined || rawValue === "";
                       const isSelected = selectedColumnId === col.id;
 
                       return (
                         <td
                           key={col.id}
+                          data-intent={intent ?? undefined}
                           style={
                             col.width !== undefined
                               ? {
@@ -285,13 +329,19 @@ export function DefaultTableRenderer({
                           className={cn(
                             "px-3.5 py-1.5 text-xs text-foreground whitespace-nowrap truncate border-r border-border/30 last:border-r-0 transition-colors",
                             isSelected && "bg-amber-400/[0.04]",
+                            intentStyles.cellClass,
+                            intentStyles.textClass,
                             col.align === "right"
                               ? "text-right font-mono"
                               : col.align === "center"
                                 ? "text-center"
                                 : "text-left",
                           )}
-                          title={formattedValue || rawValue || ""}
+                          title={
+                            intent
+                              ? `${formattedValue || rawValue || ""} (${intent})`
+                              : formattedValue || rawValue || ""
+                          }
                         >
                           {isEmpty ? (
                             <span

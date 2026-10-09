@@ -8,6 +8,7 @@ import {
   type DeparturesConfig,
   type PresentationConfig,
   type RendererId,
+  type SemanticIntent,
   type TablePresentationConfig,
   MIN_COLUMN_WIDTH,
   MAX_COLUMN_WIDTH,
@@ -124,6 +125,7 @@ export function createDefaultPresentation(document: CsvDocument): TablePresentat
       visible: true,
       align,
       inferredType,
+      conditionalRules: [],
     });
   }
 
@@ -352,6 +354,7 @@ export function resetColumnPresentation(
       visible: true,
       width: undefined,
       format: undefined,
+      conditionalRules: [],
     };
   });
 
@@ -539,11 +542,7 @@ export function resetDeparturesMapping(presentation: PresentationConfig): Presen
   };
 }
 
-/**
- * Semantic intent categorization for renderer visual presentation.
- * Completely decoupled from CSS colors and DOM elements.
- */
-export type SemanticIntent = "success" | "warning" | "danger" | "info" | "muted";
+export type { SemanticIntent };
 
 /**
  * Result of resolving raw cell content to departures status presentation.

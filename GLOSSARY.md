@@ -60,6 +60,22 @@ The client session wrapper encapsulating a successfully ingested CSV file's meta
 
 A display formatting rule (such as decimal precision, currency symbols, date format strings, alignment, or conditional styling) applied to cell values without mutating the underlying data.
 
+### Conditional Rule
+
+A value-based visual criterion defined on a column that evaluates raw cell values against an operator and target comparison to produce a semantic visual intent, completely decoupled from CSS classes or physical colors.
+
+### Semantic Intent
+
+A bounded, presentation-neutral visual categorization (`success`, `warning`, `danger`, `info`, `muted`) produced by rule evaluation that guides how active renderers visually accent data cells.
+
+### Rule Precedence
+
+The deterministic evaluation priority governing multiple conditional rules on a column, where rules are evaluated in array order and the first matching rule dictates the resulting semantic intent.
+
+### Rule Evaluation
+
+The pure, deterministic computation that compares raw cell data against a conditional rule using the column's effective semantic type, yielding a match or non-match without altering source data or formatted display strings.
+
 ### PresentationConfig
 
 The portable, framework-independent presentation model specifying how a `CsvDocument` should be presented by the active renderer (such as visible columns, column order, and alignment) without mutating raw CSV data.

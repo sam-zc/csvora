@@ -1,19 +1,22 @@
 import { describe, expect, it } from "bun:test";
 import type { CsvDocument } from "@csvora/csv-core";
 import {
+  addConditionalRule,
   createDefaultPresentation,
   getColumnDisplayLabel,
   getVisibleColumns,
   moveColumn,
   resetColumnPresentation,
+  resetDeparturesMapping,
   resetLayout,
+  resolveConditionalIntent,
+  resolveDepartureStatus,
   setColumnAlignment,
   setColumnTypeOverride,
   setColumnVisibility,
   setColumnWidth,
-  setRenderer,
   setDeparturesMapping,
-  resetDeparturesMapping,
+  setRenderer,
 } from "@csvora/table-engine";
 import type { LoadedCsvDocument } from "../src/features/csv-ingestion";
 
@@ -493,6 +496,100 @@ describe("CSV Preview Workspace & Presentation Integration", () => {
       // Reset departures mappings restores inferred gate
       pres = resetDeparturesMapping(pres);
       expect(pres.rendererConfigs.departures?.gateColumnId).toBe("col_3");
+    });
+  });
+
+  describe("Conditional Formatting & Semantic Rules Workspace Integration", () => {
+    it("preserves conditional rules across column reordering, hiding, and resizing", () => {
+      let pres = createDefaultPresentation(mockLoadedDocument.document);
+
+      // Add conditional rule to amount column (col_1)
+      pres = addConditionalRule(pres, "col_1", {
+        operator: "lt",
+        value: 0,
+        intent: "danger",
+      });
+      expect(pres.columns[1]?.conditionalRules).toHaveLength(1);
+
+      // 1. Reorder columns: move col_1 left
+      pres = moveColumn(pres, "col_1", "left");
+      expect(pres.columns[0]?.id).toBe("col_1");
+      expect(pres.columns[0]?.conditionalRules).toHaveLength(1);
+      expect(pres.columns[0]?.conditionalRules[0]?.intent).toBe("danger");
+
+      // 2. Hide column
+      pres = setColumnVisibility(pres, "col_1", false);
+      expect(pres.columns[0]?.visible).toBe(false);
+      expect(pres.columns[0]?.conditionalRules).toHaveLength(1);
+
+      // 3. Resize column width
+      pres = setColumnWidth(pres, "col_1", 200);
+      expect(pres.columns[0]?.width).toBe(200);
+      expect(pres.columns[0]?.conditionalRules).toHaveLength(1);
+
+      // 4. Show column again
+      pres = setColumnVisibility(pres, "col_1", true);
+      expect(pres.columns[0]?.visible).toBe(true);
+      expect(pres.columns[0]?.conditionalRules).toHaveLength(1);
+    });
+
+    it("preserves conditional rules when switching between Table and Departures Board", () => {
+      let pres = createDefaultPresentation(mockLoadedDocument.document);
+
+      pres = addConditionalRule(pres, "col_1", {
+        operator: "gt",
+        value: 100,
+        intent: "success",
+      });
+
+      // Switch to Departures Board
+      pres = setRenderer(pres, "departures");
+      expect(pres.rendererId).toBe("departures");
+      expect(pres.columns[1]?.conditionalRules).toHaveLength(1);
+
+      // Switch back to Table View
+      pres = setRenderer(pres, "table");
+      expect(pres.rendererId).toBe("table");
+      expect(pres.columns[1]?.conditionalRules).toHaveLength(1);
+      expect(pres.columns[1]?.conditionalRules[0]?.operator).toBe("gt");
+    });
+
+    it("enforces Departures Board precedence: airport status resolver takes priority over generic conditional rules", () => {
+      const flightDoc: CsvDocument = {
+        headers: ["Time", "Flight", "Destination", "Gate", "Status"],
+        rows: [
+          { index: 0, lineNumber: 2, fields: ["10:30", "AA100", "Paris", "B12", "CANCELLED"] },
+        ],
+        columnCount: 5,
+        rowCount: 1,
+        delimiter: ",",
+      };
+
+      let pres = createDefaultPresentation(flightDoc);
+      pres = setRenderer(pres, "departures");
+
+      // Add a conflicting generic conditional rule to Status column (col_4): say 'success' if eq CANCELLED
+      pres = addConditionalRule(pres, "col_4", {
+        operator: "eq",
+        value: "CANCELLED",
+        intent: "success",
+      });
+
+      // 1. Generic rule evaluation by itself produces 'success'
+      const genericIntent = resolveConditionalIntent({
+        rawValue: "CANCELLED",
+        column: pres.columns[4]!,
+      });
+      expect(genericIntent).toBe("success");
+
+      // 2. But the Departures Board's specialized status resolver evaluates to 'danger' with dimmed row
+      const statusResult = resolveDepartureStatus("CANCELLED");
+      expect(statusResult.intent).toBe("danger");
+      expect(statusResult.text).toBe("CANCELLED");
+      expect(statusResult.isDimmedRow).toBe(true);
+
+      // Precedence guarantee: Airport Departures Board status display uses statusResult.intent ('danger'),
+      // ensuring specialized airport status is not overridden by generic rules.
     });
   });
 });

@@ -10,6 +10,7 @@ describe("@csvora/table-engine Semantic Formatting Engine", () => {
     visible: true,
     align: "right",
     inferredType: "number",
+    conditionalRules: [],
   };
 
   describe("currency formatting", () => {

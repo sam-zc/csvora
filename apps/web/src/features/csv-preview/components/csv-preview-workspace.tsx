@@ -2,8 +2,12 @@
 
 import { useEffect, useState } from "react";
 import {
+  addConditionalRule,
+  clearConditionalRules,
   createDefaultPresentation,
   getDefaultAlignmentForType,
+  moveConditionalRule,
+  removeConditionalRule,
   resetColumnPresentation,
   resetDeparturesMapping,
   setColumnAlignment,
@@ -12,6 +16,7 @@ import {
   setColumnVisibility,
   setColumnWidth,
   setDeparturesMapping,
+  updateConditionalRule,
   type PresentationConfig,
 } from "@csvora/table-engine";
 import { cn } from "@csvora/ui";
@@ -60,6 +65,7 @@ export function CsvPreviewWorkspace({ loadedDocument, onReset }: CsvPreviewWorks
         !col.visible ||
         col.width !== undefined ||
         col.format !== undefined ||
+        (col.conditionalRules && col.conditionalRules.length > 0) ||
         col.sourceIndex !== idx
       );
     });
@@ -112,6 +118,21 @@ export function CsvPreviewWorkspace({ loadedDocument, onReset }: CsvPreviewWorks
           }
           onUpdateFormat={(columnId, format) =>
             setPresentation((prev) => setColumnFormat(prev, columnId, format))
+          }
+          onAddRule={(columnId, rule) =>
+            setPresentation((prev) => addConditionalRule(prev, columnId, rule))
+          }
+          onUpdateRule={(columnId, ruleId, updates) =>
+            setPresentation((prev) => updateConditionalRule(prev, columnId, ruleId, updates))
+          }
+          onRemoveRule={(columnId, ruleId) =>
+            setPresentation((prev) => removeConditionalRule(prev, columnId, ruleId))
+          }
+          onMoveRule={(columnId, ruleId, direction) =>
+            setPresentation((prev) => moveConditionalRule(prev, columnId, ruleId, direction))
+          }
+          onClearRules={(columnId) =>
+            setPresentation((prev) => clearConditionalRules(prev, columnId))
           }
           onResetColumn={(columnId) =>
             setPresentation((prev) => resetColumnPresentation(prev, columnId))

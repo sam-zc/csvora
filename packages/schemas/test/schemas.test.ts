@@ -138,4 +138,65 @@ describe("@csvora/schemas", () => {
     expect(presentation.columns).toHaveLength(2);
     expect(presentation.rendererConfigs.departures?.timeColumnId).toBe("col_0");
   });
+
+  it("validates semantic intent and conditional rule schema", () => {
+    const validRule = columnPresentationSchema.parse({
+      id: "col_0",
+      sourceIndex: 0,
+      header: "Revenue",
+      conditionalRules: [
+        {
+          id: "r1",
+          operator: "lt",
+          value: 0,
+          intent: "danger",
+        },
+        {
+          id: "r2",
+          operator: "empty",
+          intent: "muted",
+          enabled: false,
+        },
+      ],
+    });
+
+    expect(validRule.conditionalRules).toHaveLength(2);
+    expect(validRule.conditionalRules[0]?.operator).toBe("lt");
+    expect(validRule.conditionalRules[0]?.intent).toBe("danger");
+    expect(validRule.conditionalRules[0]?.enabled).toBe(true); // default true
+    expect(validRule.conditionalRules[1]?.enabled).toBe(false);
+
+    // Invalid operator
+    expect(() =>
+      columnPresentationSchema.parse({
+        id: "col_0",
+        sourceIndex: 0,
+        header: "Bad",
+        conditionalRules: [
+          {
+            id: "r1",
+            operator: "regex",
+            intent: "danger",
+          },
+        ],
+      }),
+    ).toThrow();
+
+    // Invalid intent
+    expect(() =>
+      columnPresentationSchema.parse({
+        id: "col_0",
+        sourceIndex: 0,
+        header: "Bad",
+        conditionalRules: [
+          {
+            id: "r1",
+            operator: "eq",
+            value: "1",
+            intent: "super_red",
+          },
+        ],
+      }),
+    ).toThrow();
+  });
 });

@@ -1,6 +1,7 @@
 export * from "./table";
 export * from "./format";
 export * from "./presentation";
+export * from "./rules";
 export {
   MIN_COLUMN_WIDTH,
   MAX_COLUMN_WIDTH,
@@ -14,6 +15,9 @@ export {
   textFormatOptionsSchema,
   departuresConfigSchema,
   rendererConfigsSchema,
+  semanticIntentSchema,
+  conditionalOperatorSchema,
+  conditionalRuleSchema,
 } from "@csvora/schemas";
 export type {
   TableConfig,
@@ -42,4 +46,8 @@ export type {
   DeparturesConfigInput,
   RendererConfigs,
   RendererConfigsInput,
+  SemanticIntent,
+  ConditionalOperator,
+  ConditionalRule,
+  ConditionalRuleInput,
 } from "@csvora/schemas";
